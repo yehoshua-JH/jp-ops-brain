@@ -19,6 +19,8 @@
 - [x] Build Input Processor page UI (textarea, meeting type selector, participants field)
 - [x] Implement 4-stage prompt system (Single Meeting, Daily Batch, Weekly Review, Monthly Review) - via llmProcessing.ts
 - [x] Create Manus LLM integration (no Claude)
+- [x] Improved Stage 1 prompt for better speaker attribution in garbled transcripts
+- [x] Implement vitest tests for LLM processing with speaker attribution validation
 - [ ] Implement true streaming LLM output with SSE
 - [x] Implement session save functionality after processing - saves to database
 - [ ] Add format detection for meeting input (transcript, AI notes, bullet points)

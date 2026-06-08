@@ -65,13 +65,32 @@ async function stage1SingleMeeting(
   meetingType: string,
   participants: string
 ): Promise<ProcessingResult> {
-  const prompt = `You are an operations intelligence analyst. Analyze this meeting transcript/notes and extract structured operational insights.
+  const participantList = participants.split(",").map(p => p.trim());
+  const firstParticipant = participantList[0] || "Speaker 1";
+  const secondParticipant = participantList[1] || "Speaker 2";
+
+  const prompt = `You are an operations intelligence analyst analyzing a meeting transcript with alternating speakers.
+
+CRITICAL: This is a speech-to-text transcript that may be garbled. Your job is to:
+1. Parse alternating speakers (first speaker, second speaker, etc.)
+2. Attribute statements accurately to the correct speaker
+3. Extract key points, decisions, blockers, and action items
+4. Be careful NOT to swap speaker identities
 
 Meeting Type: ${meetingType}
 Participants: ${participants}
+First Speaker: ${firstParticipant}
+Second Speaker: ${secondParticipant}
 
-Meeting Content:
+Meeting Transcript:
 ${meetingInput}
+
+IMPORTANT SPEAKER ATTRIBUTION RULES:
+- The first participant (${firstParticipant}) typically speaks first and asks questions/drives the agenda
+- The second participant (${secondParticipant}) responds and provides information about their experience/capabilities
+- Look for contextual clues: "I'm looking for", "I need", "I have experience with" to identify who is speaking
+- Do NOT swap speaker roles - be very careful about this
+- When extracting action items, clearly identify who owns each task
 
 Extract and return a JSON object with the following structure:
 {
@@ -79,14 +98,16 @@ Extract and return a JSON object with the following structure:
   "decisions": ["decision 1", "decision 2", ...],
   "blockers": ["blocker 1", "blocker 2", ...],
   "actionItems": [
-    {"task": "description", "owner": "name", "priority": "HIGH|MEDIUM|LOW", "deadline": "YYYY-MM-DD"},
+    {"task": "description", "owner": "name (${firstParticipant} or ${secondParticipant})", "priority": "HIGH|MEDIUM|LOW", "deadline": "YYYY-MM-DD or null"},
     ...
   ],
   "domainTags": ["domain1", "domain2", ...],
-  "summary": "brief 2-3 sentence summary"
+  "summary": "brief 2-3 sentence summary - be very careful to attribute roles correctly"
 }
 
 Categorize domain tags from these operational domains: ${OPERATIONAL_DOMAINS.join(", ")}
+
+ACCURACY REQUIREMENT: Double-check speaker attribution before returning. If you're uncertain about who said something, mark it as "Unknown" rather than guessing.
 
 Return ONLY valid JSON, no markdown formatting.`;
 
