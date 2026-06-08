@@ -67,7 +67,7 @@ export default function InputProcessor() {
 
 ---
 
-**Note:** Claude integration is manual. Once you integrate your Claude API key, this will process through the full 4-stage pipeline and generate structured operational intelligence.
+**Note:** Processing through Manus LLM. This will extract key points, decisions, blockers, and action items, then categorize them by operational domain.
 
 **Your Input Preview:**
 ${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
@@ -157,7 +157,7 @@ ${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
       <div>
         <h1 className="text-3xl font-bold">Process Meeting Input</h1>
         <p className="text-muted-foreground mt-2">
-          Paste your meeting transcript, AI notes, or bullet points. Claude will transform them into structured operational intelligence through a 4-stage pipeline.
+          Paste your meeting transcript, AI notes, or bullet points. Manus will transform them into structured operational intelligence through a 4-stage pipeline.
         </p>
       </div>
 
@@ -214,7 +214,7 @@ ${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
                     Processing...
                   </>
                 ) : (
-                  "Process with Claude"
+                  "Process Meeting"
                 )}
               </Button>
             </div>
