@@ -20,6 +20,7 @@ export default function InputProcessor() {
   const [savedSessionNumber, setSavedSessionNumber] = useState<number | null>(null);
 
   const createSession = trpc.sessions.create.useMutation();
+  const processLLM = trpc.llm.processMeeting.useMutation();
 
   const handleProcess = async () => {
     if (!input.trim()) {
@@ -34,47 +35,45 @@ export default function InputProcessor() {
 
     setIsProcessing(true);
     try {
-      // TODO: Replace with actual Claude API call
-      // For now, show a placeholder that demonstrates the structure
-      const placeholderOutput = `
-## Processing Meeting Input
+      // Call the LLM processing endpoint
+      const result = await processLLM.mutateAsync({
+        meetingInput: input,
+        meetingType,
+        participants,
+      });
+
+      if (result.success && result.data) {
+        const data = result.data;
+        const formattedOutput = `
+## Meeting Analysis Results
 
 **Meeting Type:** ${meetingType}
 **Participants:** ${participants}
-**Input Length:** ${input.length} characters
 
-### 4-Stage Processing Pipeline
+### Key Points
+${data.keyPoints.map((p: string) => `- ${p}`).join("\n")}
 
-**Stage 1: Single Meeting Analysis**
-- Extracting key points, decisions, blockers, and action items from raw input
-- Categorizing by operational domain
-- Identifying maturity implications
+### Decisions Made
+${data.decisions.map((d: string) => `- ${d}`).join("\n")}
 
-**Stage 2: Daily Batch Aggregation**
-- Will aggregate all sessions from today
-- Generate daily rollup report
-- Identify recurring themes
+### Blockers Identified
+${data.blockers.map((b: string) => `- ${b}`).join("\n")}
 
-**Stage 3: Weekly Review**
-- Will aggregate daily rollups from this week
-- Identify weekly trends and patterns
-- Generate strategic insights
+### Action Items
+${data.actionItems.map((ai: { task: string; owner?: string; priority?: string }) => `- **${ai.task}** (Owner: ${ai.owner || "TBD"}, Priority: ${ai.priority || "MEDIUM"})`).join("\n")}
 
-**Stage 4: Monthly Review**
-- Will aggregate weekly reviews from this month
-- Generate timeline stamp
-- Update domain maturity assessments
+### Domain Tags
+${data.domainTags.map((tag: string) => `- ${tag}`).join("\n")}
 
----
+### Summary
+${data.summary}
+        `.trim();
 
-**Note:** Processing through Manus LLM. This will extract key points, decisions, blockers, and action items, then categorize them by operational domain.
-
-**Your Input Preview:**
-${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
-      `.trim();
-
-      setOutput(placeholderOutput);
-      toast.success("Meeting input processed (placeholder mode)");
+        setOutput(formattedOutput);
+        toast.success("Meeting processed successfully!");
+      } else {
+        toast.error("Failed to process meeting");
+      }
     } catch (error) {
       toast.error("Failed to process input");
       console.error(error);
@@ -85,72 +84,37 @@ ${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
 
   const handleSaveSession = async () => {
     if (!output.trim()) {
-      toast.error("Process meeting input first");
+      toast.error("Please process a meeting first");
       return;
     }
 
     try {
-      const result = await createSession.mutateAsync({
+      const session = await createSession.mutateAsync({
         date: new Date(),
-        inputFormat: "Transcript",
+        inputFormat: "text",
         meetingType,
         participants: participants.split(",").map((p) => p.trim()),
-        tone: "informative",
-        executiveSummary: output.split("\n")[0] || "Meeting processed",
+        executiveSummary: output.substring(0, 200),
         operationalSummary: output,
-        keyPoints: [
-          {
-            domain: "GENERAL",
-            point: "Meeting processed and saved to session library",
-          },
-        ],
+        keyPoints: [],
         activeBlockers: [],
         decisionsMade: [],
         actionItems: [],
         openQuestions: [],
         systemMaturityNotes: [],
-        changelogDelta: "Session created from input processor",
+        changelogDelta: "",
       });
 
-      setSavedSessionNumber(result.sessionNumber);
-      toast.success(`Session #${result.sessionNumber} saved!`);
-
-      // Reset form after short delay
-      setTimeout(() => {
-        setInput("");
-        setParticipants("");
-        setOutput("");
-        setSavedSessionNumber(null);
-      }, 2000);
+      setSavedSessionNumber(session.sessionNumber);
+      toast.success(`Session saved! (Session #${session.sessionNumber})`);
+      setInput("");
+      setOutput("");
+      setParticipants("");
     } catch (error) {
       toast.error("Failed to save session");
       console.error(error);
     }
   };
-
-  if (savedSessionNumber) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Card className="p-12 text-center space-y-6 max-w-md">
-          <CheckCircle className="w-16 h-16 text-green-600 mx-auto" />
-          <div>
-            <h2 className="text-2xl font-bold">Session Saved!</h2>
-            <p className="text-muted-foreground mt-2">
-              Session #{savedSessionNumber} has been added to your library
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Button variant="outline" className="flex-1" onClick={() => navigate("/library")}>
-              View Library
-            </Button>
-            <Button className="flex-1" onClick={() => setSavedSessionNumber(null)}>
-              Process Another
-            </Button>
-          </div>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
@@ -222,19 +186,20 @@ ${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
         </div>
 
         {/* Output Section */}
-        <div className="lg:col-span-1">
-          <Card className="p-6 sticky top-6">
+        <div className="space-y-4">
+          <Card className="p-6 min-h-96 bg-muted/50">
             <div className="space-y-4">
               <h3 className="font-semibold">Output Preview</h3>
               {output ? (
-                <>
-                  <div className="bg-muted p-4 rounded text-sm max-h-96 overflow-y-auto">
-                    <pre className="whitespace-pre-wrap font-mono text-xs">{output}</pre>
+                <div className="space-y-4">
+                  <div className="prose prose-sm max-w-none text-sm whitespace-pre-wrap break-words">
+                    {output}
                   </div>
                   <Button
                     onClick={handleSaveSession}
                     disabled={createSession.isPending}
                     className="w-full"
+                    variant="default"
                   >
                     {createSession.isPending ? (
                       <>
@@ -242,14 +207,22 @@ ${input.substring(0, 300)}${input.length > 300 ? "..." : ""}
                         Saving...
                       </>
                     ) : (
-                      "Save Session"
+                      <>
+                        <CheckCircle className="mr-2 h-4 w-4" />
+                        Save Session
+                      </>
                     )}
                   </Button>
-                </>
-              ) : (
-                <div className="bg-muted p-4 rounded text-sm text-muted-foreground text-center py-8">
-                  Processing output will appear here
+                  {savedSessionNumber && (
+                    <div className="text-sm text-green-600 font-semibold">
+                      ✓ Session #{savedSessionNumber} saved
+                    </div>
+                  )}
                 </div>
+              ) : (
+                <p className="text-muted-foreground text-sm">
+                  Processing output will appear here
+                </p>
               )}
             </div>
           </Card>

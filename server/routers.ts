@@ -5,6 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { TRPCError } from "@trpc/server";
+import { processMeetingFull4Stage } from "./llmProcessing";
 
 export const appRouter = router({
   system: systemRouter,
@@ -334,6 +335,39 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         await db.resolveBlocker(input.id, input.resolutionNote);
         return { success: true };
+      }),
+  }),
+
+  // ============================================================================
+  // LLM PROCESSING
+  // ============================================================================
+  llm: router({
+    processMeeting: protectedProcedure
+      .input(
+        z.object({
+          meetingInput: z.string(),
+          meetingType: z.string(),
+          participants: z.string(),
+        })
+      )
+      .mutation(async ({ input }) => {
+        try {
+          const result = await processMeetingFull4Stage(
+            input.meetingInput,
+            input.meetingType,
+            input.participants
+          );
+          return {
+            success: true,
+            data: result,
+          };
+        } catch (error) {
+          console.error("LLM processing error:", error);
+          throw new TRPCError({
+            code: "INTERNAL_SERVER_ERROR",
+            message: "Failed to process meeting with LLM",
+          });
+        }
       }),
   }),
 
