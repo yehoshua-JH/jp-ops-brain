@@ -1,7 +1,20 @@
-import { eq } from "drizzle-orm";
+import { eq, desc, and, gte, lte, like, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
-import { ENV } from './_core/env';
+import {
+  InsertUser,
+  users,
+  domains,
+  sessions,
+  actionItems,
+  blockers,
+  blockerSessions,
+  sessionDomainMaturity,
+  rollups,
+  timeline,
+  quickNotes,
+  settings,
+} from "../drizzle/schema";
+import { ENV } from "./_core/env";
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -56,8 +69,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.role = user.role;
       updateSet.role = user.role;
     } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+      values.role = "admin";
+      updateSet.role = "admin";
     }
 
     if (!values.lastSignedIn) {
@@ -84,9 +97,389 @@ export async function getUserByOpenId(openId: string) {
     return undefined;
   }
 
-  const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
+  const result = await db
+    .select()
+    .from(users)
+    .where(eq(users.openId, openId))
+    .limit(1);
 
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+// ============================================================================
+// DOMAINS
+// ============================================================================
+
+export async function getAllDomains() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(domains).orderBy(domains.tag);
+}
+
+export async function getDomainByTag(tag: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(domains)
+    .where(eq(domains.tag, tag))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function insertDomains(domainsToInsert: typeof domains.$inferInsert[]) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(domains).values(domainsToInsert);
+}
+
+export async function updateDomainIdealEndState(domainId: number, idealEndState: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(domains)
+    .set({ idealEndState, updatedAt: new Date() })
+    .where(eq(domains.id, domainId));
+}
+
+// ============================================================================
+// SESSIONS
+// ============================================================================
+
+export async function getNextSessionNumber() {
+  const db = await getDb();
+  if (!db) return 1;
+  const result = await db
+    .select()
+    .from(sessions)
+    .orderBy(desc(sessions.sessionNumber))
+    .limit(1);
+  return result.length > 0 ? result[0].sessionNumber + 1 : 1;
+}
+
+export async function createSession(session: typeof sessions.$inferInsert) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.insert(sessions).values(session);
+  return result;
+}
+
+export async function getSessionById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(sessions).where(eq(sessions.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getSessionByNumber(sessionNumber: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.sessionNumber, sessionNumber))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getAllSessions() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(sessions).orderBy(desc(sessions.date));
+}
+
+export async function getSessionsByDateRange(startDate: Date, endDate: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(sessions)
+    .where(and(gte(sessions.date, startDate), lte(sessions.date, endDate)))
+    .orderBy(desc(sessions.date));
+}
+
+// ============================================================================
+// SESSION DOMAIN MATURITY
+// ============================================================================
+
+export async function createSessionDomainMaturity(
+  maturity: typeof sessionDomainMaturity.$inferInsert
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(sessionDomainMaturity).values(maturity);
+}
+
+export async function getSessionDomainMaturityByDomain(domainId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(sessionDomainMaturity)
+    .where(eq(sessionDomainMaturity.domainId, domainId))
+    .orderBy(desc(sessionDomainMaturity.sessionId));
+}
+
+// ============================================================================
+// ACTION ITEMS
+// ============================================================================
+
+export async function createActionItem(item: typeof actionItems.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(actionItems).values(item);
+}
+
+export async function getAllActionItems() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(actionItems)
+    .orderBy(desc(actionItems.priority), actionItems.deadline);
+}
+
+export async function getActionItemsByStatus(status: "open" | "complete") {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(actionItems)
+    .where(eq(actionItems.status, status))
+    .orderBy(desc(actionItems.priority), actionItems.deadline);
+}
+
+export async function getActionItemsByOwner(owner: string) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(actionItems)
+    .where(eq(actionItems.owner, owner))
+    .orderBy(desc(actionItems.priority), actionItems.deadline);
+}
+
+export async function updateActionItemStatus(id: number, status: "open" | "complete") {
+  const db = await getDb();
+  if (!db) return;
+  const completedAt = status === "complete" ? new Date() : null;
+  await db
+    .update(actionItems)
+    .set({ status, completedAt })
+    .where(eq(actionItems.id, id));
+}
+
+// ============================================================================
+// BLOCKERS
+// ============================================================================
+
+export async function createBlocker(blocker: typeof blockers.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  const result = await db.insert(blockers).values(blocker);
+  return result;
+}
+
+export async function getAllBlockers() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(blockers).orderBy(desc(blockers.createdAt));
+}
+
+export async function getBlockersByStatus(status: "open" | "resolved") {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(blockers)
+    .where(eq(blockers.status, status))
+    .orderBy(desc(blockers.createdAt));
+}
+
+export async function getChronicBlockers() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(blockers)
+    .where(eq(blockers.isChronicFlag, true))
+    .orderBy(desc(blockers.timesAppeared));
+}
+
+export async function updateBlockerTimesAppeared(id: number, newCount: number) {
+  const db = await getDb();
+  if (!db) return;
+  const isChronicFlag = newCount >= 3;
+  await db
+    .update(blockers)
+    .set({ timesAppeared: newCount, isChronicFlag })
+    .where(eq(blockers.id, id));
+}
+
+export async function resolveBlocker(id: number, resolutionNote: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db
+    .update(blockers)
+    .set({ status: "resolved", resolutionNote, resolvedAt: new Date() })
+    .where(eq(blockers.id, id));
+}
+
+export async function getOrCreateBlocker(description: string, domainTag: string, sessionNumber: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  // Try to find existing blocker with same description
+  const existing = await db
+    .select()
+    .from(blockers)
+    .where(eq(blockers.description, description))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return existing[0];
+  }
+
+  // Create new blocker
+  const result = await db.insert(blockers).values({
+    description,
+    domainTag,
+    firstAppearedSession: sessionNumber,
+    timesAppeared: 1,
+    status: "open",
+    isChronicFlag: false,
+  });
+
+  // Fetch and return the created blocker
+  const created = await db
+    .select()
+    .from(blockers)
+    .where(eq(blockers.description, description))
+    .limit(1);
+
+  return created.length > 0 ? created[0] : undefined;
+}
+
+export async function addBlockerSession(blockerId: number, sessionId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(blockerSessions).values({ blockerId, sessionId });
+}
+
+// ============================================================================
+// ROLLUPS
+// ============================================================================
+
+export async function createRollup(rollup: typeof rollups.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  const result = await db.insert(rollups).values(rollup);
+  return result;
+}
+
+export async function getRollupsByType(type: "Daily Rollup" | "Weekly Review" | "Monthly Review") {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(rollups)
+    .where(eq(rollups.type, type))
+    .orderBy(desc(rollups.date));
+}
+
+export async function getRollupsByDateRange(startDate: Date, endDate: Date) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(rollups)
+    .where(and(gte(rollups.date, startDate), lte(rollups.date, endDate)))
+    .orderBy(desc(rollups.date));
+}
+
+// ============================================================================
+// TIMELINE
+// ============================================================================
+
+export async function createTimelineEntry(entry: typeof timeline.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(timeline).values(entry);
+}
+
+export async function getTimelineEntries() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(timeline).orderBy(desc(timeline.month));
+}
+
+export async function getTimelineByMonth(month: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(timeline)
+    .where(eq(timeline.month, month))
+    .limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+// ============================================================================
+// QUICK NOTES
+// ============================================================================
+
+export async function createQuickNote(note: typeof quickNotes.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(quickNotes).values(note);
+}
+
+export async function getAllQuickNotes() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(quickNotes).orderBy(desc(quickNotes.createdAt));
+}
+
+export async function getQuickNotesBySession(sessionId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db
+    .select()
+    .from(quickNotes)
+    .where(eq(quickNotes.sessionId, sessionId))
+    .orderBy(desc(quickNotes.createdAt));
+}
+
+// ============================================================================
+// SETTINGS
+// ============================================================================
+
+export async function getSetting(key: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.key, key))
+    .limit(1);
+  return result.length > 0 ? result[0].value : undefined;
+}
+
+export async function setSetting(key: string, value: string) {
+  const db = await getDb();
+  if (!db) return;
+  const existing = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.key, key))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(settings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(settings.key, key));
+  } else {
+    await db.insert(settings).values({ key, value });
+  }
+}
