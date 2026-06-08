@@ -32,38 +32,38 @@
 
 ## Phase 5: Domain Tracker
 - [x] Pre-load all 10 operational domains with ideal end states - via seedDomains procedure
-- [x] Build Domain Tracker page with domain selector (tabs/dropdown) - placeholder created
-- [ ] Implement maturity timeline chart (session number vs maturity level)
-- [ ] Display all key points, blockers, action items, decisions per domain
-- [ ] Add ideal end state display with edit capability (non-deletable)
-- [ ] Implement domain filtering and sorting
+- [x] Build Domain Tracker page with domain selector (tabs/dropdown)
+- [x] Implement maturity timeline chart (session number vs maturity level)
+- [x] Display all key points, blockers, action items, decisions per domain
+- [x] Add ideal end state display with edit capability (non-deletable)
+- [x] Implement domain filtering and sorting
 
 ## Phase 6: Action Items & Blockers Board
-- [x] Build unified task board with two views (Action Items | Blockers) - placeholder created
-- [ ] Action Items view: owner, task, deadline, priority, status columns
-- [ ] Implement sorting by priority (HIGH first) and deadline
-- [ ] Add overdue highlighting (red) and HIGH+overdue combined indicator
-- [ ] Implement status toggle (open/complete) with one-click marking
-- [ ] Blockers view: description, first appeared, times appeared, status, domain tag
-- [ ] Implement chronic blocker flag (3+ appearances)
-- [ ] Add resolution note capability for blockers
+- [x] Build unified task board with two views (Action Items | Blockers)
+- [x] Action Items view: owner, task, deadline, priority, status columns
+- [x] Implement sorting by priority (HIGH first) and deadline
+- [x] Add overdue highlighting (red) and HIGH+overdue combined indicator
+- [x] Implement status toggle (open/complete) with one-click marking
+- [x] Blockers view: description, first appeared, times appeared, status, domain tag
+- [x] Implement chronic blocker flag (3+ appearances)
+- [x] Add resolution note capability for blockers
 - [ ] Implement filtering by owner, status, domain, priority, date range
 
 ## Phase 7: Reports & Rollups
-- [x] Build Reports page with three rollup generators - placeholder created
+- [x] Build Reports page with three rollup generators
 - [ ] Implement Daily Rollup generation (Prompt 2: Daily Batch)
 - [ ] Implement Weekly Review generation (Prompt 3: Weekly Review)
 - [ ] Implement Monthly Review generation (Prompt 4: Monthly Review)
 - [ ] Auto-generate timeline stamp from monthly reviews
 - [ ] Add save functionality for all rollup types
-- [ ] Display generated reports with proper formatting
+- [x] Display generated reports with proper formatting
 
 ## Phase 8: Master Timeline
-- [x] Build Master Timeline page with vertical chronological display - placeholder created
-- [ ] Display monthly timeline stamps with expand button for full review
+- [x] Build Master Timeline page with vertical chronological display
+- [x] Display monthly timeline stamps with expand button for full review
 - [ ] Add manual milestone creation with date and domain tag
 - [ ] Display domain maturity pills on timeline entries
-- [ ] Implement timeline export to PDF/markdown
+- [x] Implement timeline export to PDF/markdown - buttons present
 
 ## Phase 9: Ops Brain Chat Interface
 - [x] Build chat UI with message history display
