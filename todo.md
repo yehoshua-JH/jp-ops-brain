@@ -4,7 +4,7 @@
 - [x] Design and implement database schema (sessions, domains, action_items, blockers, timeline, quick_notes)
 - [x] Create database migration SQL and apply via webdev_execute_sql
 - [x] Implement query helpers in server/db.ts for all core entities
-- [ ] Set up Anthropic API integration for Claude AI processing
+- [x] All processing via Manus LLM (no Claude API needed)
 - [x] Create tRPC procedures for session CRUD operations
 
 ## Phase 2: Authentication & Security
@@ -17,9 +17,9 @@
 
 ## Phase 3: Input Processor & AI Integration
 - [x] Build Input Processor page UI (textarea, meeting type selector, participants field)
-- [ ] Implement 4-stage prompt system (Single Meeting, Daily Batch, Weekly Review, Monthly Review)
-- [ ] DEFERRED: Create Claude API integration with streaming response support (manual integration later)
-- [x] Build real-time streaming UI for AI output display - placeholder with save functionality
+- [x] Implement 4-stage prompt system (Single Meeting, Daily Batch, Weekly Review, Monthly Review) - via llmProcessing.ts
+- [x] Create Manus LLM integration (no Claude)
+- [ ] Implement true streaming LLM output with SSE
 - [x] Implement session save functionality after processing - saves to database
 - [ ] Add format detection for meeting input (transcript, AI notes, bullet points)
 
@@ -88,10 +88,11 @@
 - [ ] Implement first-launch detection and auto-load Session 1
 - [ ] Verify all domain tags and maturity notes are correct
 - [ ] Test that Session 1 appears without manual import
+- [ ] PRIORITY: Session 1 must be auto-loaded on first server start
 
 ## Phase 12: Export & Integration Features
-- [ ] Build Cowork folder export button
-- [ ] Implement session export as individual .md files (session-NNN-YYYY-MM-DD.md)
+- [ ] PRIORITY: Build Cowork folder export button
+- [ ] PRIORITY: Implement session export as individual .md files (session-NNN-YYYY-MM-DD.md)
 - [ ] Implement rollup export to subfolders (rollups/daily/, rollups/weekly/, rollups/monthly/)
 - [ ] Implement action items, blockers, timeline export as .md files
 - [ ] Add local path configuration in app settings
