@@ -19,16 +19,16 @@
 - [x] Build Input Processor page UI (textarea, meeting type selector, participants field)
 - [ ] Implement 4-stage prompt system (Single Meeting, Daily Batch, Weekly Review, Monthly Review)
 - [ ] DEFERRED: Create Claude API integration with streaming response support (manual integration later)
-- [ ] Build real-time streaming UI for AI output display
-- [ ] Implement session save functionality after processing
+- [x] Build real-time streaming UI for AI output display - placeholder with save functionality
+- [x] Implement session save functionality after processing - saves to database
 - [ ] Add format detection for meeting input (transcript, AI notes, bullet points)
 
 ## Phase 4: Session Library
-- [x] Build Session Library page with list view - placeholder created
-- [ ] Implement search and filter functionality (by date, type, domain tags)
-- [ ] Create session detail view modal/page
-- [ ] Add session metadata display (date, type, participants, maturity notes)
-- [ ] Implement full output view with formatting
+- [x] Build Session Library page with list view
+- [x] Implement search and filter functionality (by date, type, domain tags)
+- [x] Create session detail view - collapsible cards
+- [x] Add session metadata display (date, type, participants)
+- [x] Implement full output view with formatting - shows all session details
 
 ## Phase 5: Domain Tracker
 - [x] Pre-load all 10 operational domains with ideal end states - via seedDomains procedure
@@ -66,22 +66,22 @@
 - [ ] Implement timeline export to PDF/markdown
 
 ## Phase 9: Ops Brain Chat Interface
-- [x] Build chat UI with message history display - placeholder created
-- [x] Implement natural language query input - placeholder created
+- [x] Build chat UI with message history display
+- [x] Implement natural language query input
 - [ ] Create context injection system (relevant sessions + quick notes)
 - [ ] Implement cross-session analysis queries
 - [ ] Implement simple factual recall queries
 - [ ] Add session reference links in responses
-- [ ] Implement streaming response display
+- [ ] Implement streaming response display - placeholder working
 
 ## Phase 10: Dashboard Home
 - [x] Build Dashboard home page with summary layout
-- [x] Display domain maturity grid with color-coded pills
+- [x] Display domain maturity grid with color-coded pills - now clickable with maturity level
 - [x] Show open action item count and overdue count
 - [x] Display recent sessions list
 - [x] Surface HIGH priority items at top
 - [x] Surface overdue items with red highlighting
-- [x] Add quick access navigation to all pages
+- [x] Add quick access navigation to all pages - functional quick action buttons
 
 ## Phase 11: Pre-loaded Data & First Launch
 - [ ] Create Session 1 data from May 30 2026 GM Handover meeting

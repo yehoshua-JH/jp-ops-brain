@@ -5,23 +5,27 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { trpc } from "@/lib/trpc";
-import { Loader2, LogOut } from "lucide-react";
+import { Loader2, LogOut, ArrowRight } from "lucide-react";
+import { useLocation } from "wouter";
 
 const DOMAIN_COLORS: Record<string, string> = {
-  "TIME-TRACKING": "bg-teal-100 text-teal-800",
-  INVOICING: "bg-blue-100 text-blue-800",
-  "TALENT-OPS": "bg-purple-100 text-purple-800",
-  "TECH-PLATFORM": "bg-gray-100 text-gray-800",
-  "CLIENT-OPS": "bg-amber-100 text-amber-800",
-  "CLIENT-PORTAL": "bg-green-100 text-green-800",
-  FINANCE: "bg-orange-100 text-orange-800",
-  "TEAM-MGMT": "bg-pink-100 text-pink-800",
-  "SALES-BD": "bg-indigo-100 text-indigo-800",
-  "AI-SYSTEMS": "bg-cyan-100 text-cyan-800",
+  "TIME-TRACKING": "bg-teal-100 text-teal-800 hover:bg-teal-200",
+  INVOICING: "bg-blue-100 text-blue-800 hover:bg-blue-200",
+  "TALENT-OPS": "bg-purple-100 text-purple-800 hover:bg-purple-200",
+  "TECH-PLATFORM": "bg-gray-100 text-gray-800 hover:bg-gray-200",
+  "CLIENT-OPS": "bg-amber-100 text-amber-800 hover:bg-amber-200",
+  "CLIENT-PORTAL": "bg-green-100 text-green-800 hover:bg-green-200",
+  FINANCE: "bg-orange-100 text-orange-800 hover:bg-orange-200",
+  "TEAM-MGMT": "bg-pink-100 text-pink-800 hover:bg-pink-200",
+  "SALES-BD": "bg-indigo-100 text-indigo-800 hover:bg-indigo-200",
+  "AI-SYSTEMS": "bg-cyan-100 text-cyan-800 hover:bg-cyan-200",
 };
+
+const MATURITY_LEVELS = ["Not started", "Early", "Developing", "Functional with gaps", "Solid", "World-class"];
 
 export default function Home() {
   const { user, isAuthenticated, logout } = useAuth();
+  const [, navigate] = useLocation();
   const [isInitializing, setIsInitializing] = useState(false);
 
   // Initialize domains on first load
@@ -58,7 +62,7 @@ export default function Home() {
             onClick={() => (window.location.href = getLoginUrl())}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            Sign In
+            Sign In with Manus
           </Button>
         </div>
       </div>
@@ -79,6 +83,22 @@ export default function Home() {
   const openActionItems = listActionItems.data?.filter((item) => item.status === "open") || [];
   const highPriorityItems = openActionItems.filter((item) => item.priority === "HIGH");
   const overdueItems = openActionItems.filter((item) => item.deadline && new Date(item.deadline) < new Date());
+
+  // Get the latest maturity level for each domain from sessions
+  const getDomainMaturity = (domainTag: string): string => {
+    if (!listSessions.data || listSessions.data.length === 0) return "Not started";
+    
+    // Find the most recent session with maturity info for this domain
+    for (const session of listSessions.data) {
+      const maturityNote = session.systemMaturityNotes?.find(
+        (note: any) => note.domain === domainTag
+      );
+      if (maturityNote) {
+        return maturityNote.maturity || "Not started";
+      }
+    }
+    return "Not started";
+  };
 
   return (
     <div className="space-y-8">
@@ -140,12 +160,21 @@ export default function Home() {
       <div>
         <h2 className="text-2xl font-bold mb-4">Domain Maturity</h2>
         <Card className="p-6">
-          <div className="flex flex-wrap gap-2">
-            {listDomains.data?.map((domain) => (
-              <Badge key={domain.tag} className={`${DOMAIN_COLORS[domain.tag] || "bg-gray-100"} cursor-pointer`}>
-                {domain.tag}
-              </Badge>
-            ))}
+          <div className="flex flex-wrap gap-3">
+            {listDomains.data?.map((domain) => {
+              const maturity = getDomainMaturity(domain.tag);
+              return (
+                <button
+                  key={domain.tag}
+                  onClick={() => navigate(`/domains?domain=${domain.tag}`)}
+                  className={`px-4 py-2 rounded-full font-medium transition-colors cursor-pointer ${DOMAIN_COLORS[domain.tag] || "bg-gray-100"}`}
+                  title={`${domain.name}: ${maturity}`}
+                >
+                  <div className="text-sm font-semibold">{domain.tag}</div>
+                  <div className="text-xs opacity-75">{maturity}</div>
+                </button>
+              );
+            })}
           </div>
         </Card>
       </div>
@@ -180,14 +209,28 @@ export default function Home() {
       <div>
         <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button className="h-12" variant="outline">
+          <Button
+            className="h-12 justify-between"
+            onClick={() => navigate("/process")}
+          >
             Process Meeting
+            <ArrowRight className="w-4 h-4" />
           </Button>
-          <Button className="h-12" variant="outline">
+          <Button
+            className="h-12 justify-between"
+            variant="outline"
+            onClick={() => navigate("/library")}
+          >
             View All Sessions
+            <ArrowRight className="w-4 h-4" />
           </Button>
-          <Button className="h-12" variant="outline">
+          <Button
+            className="h-12 justify-between"
+            variant="outline"
+            onClick={() => navigate("/brain")}
+          >
             Ask Ops Brain
+            <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       </div>
