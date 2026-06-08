@@ -5,7 +5,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
 import * as db from "./db";
 import { TRPCError } from "@trpc/server";
-import { processMeetingFull4Stage } from "./llmProcessing";
+import { processMeeting } from "./llmProcessing";
 
 export const appRouter = router({
   system: systemRouter,
@@ -352,11 +352,7 @@ export const appRouter = router({
       )
       .mutation(async ({ input }) => {
         try {
-          const result = await processMeetingFull4Stage(
-            input.meetingInput,
-            input.meetingType,
-            input.participants
-          );
+          const result = await processMeeting(input);
           return {
             success: true,
             data: result,

@@ -27,17 +27,39 @@ const OPERATIONAL_DOMAINS = [
   "Data & Analytics",
 ];
 
-function extractJsonContent(content: string | (Record<string, unknown> | { type: string; text: string } | { type: string; image_url: Record<string, unknown> } | { type: string; file_url: Record<string, unknown> })[]): string {
+function extractJsonContent(content: any): string {
   if (typeof content === "string") {
-    return content;
+    let cleaned = content.trim();
+    if (cleaned.startsWith("```json")) {
+      cleaned = cleaned.slice(7);
+    }
+    if (cleaned.startsWith("```")) {
+      cleaned = cleaned.slice(3);
+    }
+    if (cleaned.endsWith("```")) {
+      cleaned = cleaned.slice(0, -3);
+    }
+    cleaned = cleaned.trim();
+    
+    const jsonStart = cleaned.indexOf("{");
+    const jsonEnd = cleaned.lastIndexOf("}");
+    if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+      return cleaned.slice(jsonStart, jsonEnd + 1);
+    }
+    return cleaned;
   }
+  
+  if (Array.isArray(content)) {
+    const textParts = content
+      .filter((part: any) => part.type === "text")
+      .map((part: any) => part.text || "")
+      .join("\n");
+    return textParts || "{}";
+  }
+  
   return "{}";
 }
 
-/**
- * Stage 1: Single Meeting Processing
- * Extract key points, decisions, blockers, and action items from raw meeting input
- */
 async function stage1SingleMeeting(
   meetingInput: string,
   meetingType: string,
@@ -68,28 +90,29 @@ Categorize domain tags from these operational domains: ${OPERATIONAL_DOMAINS.joi
 
 Return ONLY valid JSON, no markdown formatting.`;
 
-  const response = await invokeLLM({
-    messages: [{ role: "user", content: prompt }],
-  });
+  try {
+    const response = await invokeLLM({
+      messages: [{ role: "user", content: prompt }],
+    });
 
-  const messageContent = response.choices[0]?.message?.content;
-  const content = extractJsonContent(messageContent as string);
-  const parsed = JSON.parse(content);
+    const messageContent = response.choices[0]?.message?.content;
+    const content = extractJsonContent(messageContent);
+    const parsed = JSON.parse(content);
 
-  return {
-    keyPoints: parsed.keyPoints || [],
-    decisions: parsed.decisions || [],
-    blockers: parsed.blockers || [],
-    actionItems: parsed.actionItems || [],
-    domainTags: parsed.domainTags || [],
-    summary: parsed.summary || "",
-  };
+    return {
+      keyPoints: parsed.keyPoints || [],
+      decisions: parsed.decisions || [],
+      blockers: parsed.blockers || [],
+      actionItems: parsed.actionItems || [],
+      domainTags: parsed.domainTags || [],
+      summary: parsed.summary || "",
+    };
+  } catch (error) {
+    console.error("[LLM] Error in stage1SingleMeeting:", error);
+    throw error;
+  }
 }
 
-/**
- * Stage 2: Daily Batch Processing
- * Aggregate multiple sessions from a single day
- */
 async function stage2DailyBatch(
   sessions: ProcessingResult[]
 ): Promise<ProcessingResult> {
@@ -100,172 +123,145 @@ async function stage2DailyBatch(
     )
     .join("\n\n");
 
-  const prompt = `You are an operations intelligence analyst. Synthesize these daily meeting sessions into a cohesive daily rollup.
+  const prompt = `As an operations analyst, aggregate these daily sessions into a cohesive daily rollup.
 
 ${aggregatedContent}
 
-Identify:
-1. Recurring themes and patterns
-2. Critical blockers that appeared multiple times
-3. High-priority action items
-4. Key decisions that impact multiple domains
-5. Overall operational health assessment
-
-Return a JSON object with:
+Return a JSON object with aggregated insights:
 {
-  "keyPoints": ["consolidated point 1", ...],
-  "decisions": ["key decision 1", ...],
-  "blockers": ["critical blocker 1", ...],
-  "actionItems": [{"task": "...", "owner": "...", "priority": "HIGH|MEDIUM|LOW"}, ...],
+  "keyPoints": ["aggregated point 1", ...],
+  "decisions": ["aggregated decision 1", ...],
+  "blockers": ["aggregated blocker 1", ...],
+  "actionItems": [...],
   "domainTags": ["domain1", ...],
-  "summary": "daily rollup summary"
+  "summary": "daily summary"
+}`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const messageContent = response.choices[0]?.message?.content;
+    const content = extractJsonContent(messageContent);
+    const parsed = JSON.parse(content);
+
+    return {
+      keyPoints: parsed.keyPoints || [],
+      decisions: parsed.decisions || [],
+      blockers: parsed.blockers || [],
+      actionItems: parsed.actionItems || [],
+      domainTags: parsed.domainTags || [],
+      summary: parsed.summary || "",
+    };
+  } catch (error) {
+    console.error("[LLM] Error in stage2DailyBatch:", error);
+    throw error;
+  }
 }
 
-Return ONLY valid JSON.`;
-
-  const response = await invokeLLM({
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const messageContent = response.choices[0]?.message?.content;
-  const content = extractJsonContent(messageContent as string);
-  const parsed = JSON.parse(content);
-
-  return {
-    keyPoints: parsed.keyPoints || [],
-    decisions: parsed.decisions || [],
-    blockers: parsed.blockers || [],
-    actionItems: parsed.actionItems || [],
-    domainTags: parsed.domainTags || [],
-    summary: parsed.summary || "",
-  };
-}
-
-/**
- * Stage 3: Weekly Review
- * Analyze weekly patterns and trends
- */
 async function stage3WeeklyReview(
-  dailySessions: ProcessingResult[]
+  dailyRollups: ProcessingResult[]
 ): Promise<ProcessingResult> {
-  const weeklyContent = dailySessions
+  const aggregatedContent = dailyRollups
     .map(
-      (s, i) =>
-        `Day ${i + 1}: ${s.summary}\nKey blockers: ${s.blockers.join(", ")}`
+      (d, i) =>
+        `Day ${i + 1}:\nKey Points: ${d.keyPoints.join(", ")}\nDecisions: ${d.decisions.join(", ")}\nBlockers: ${d.blockers.join(", ")}`
     )
     .join("\n\n");
 
-  const prompt = `You are an operations intelligence analyst. Conduct a weekly review of daily operations.
+  const prompt = `As an operations analyst, synthesize these daily rollups into a weekly review with strategic insights.
 
-${weeklyContent}
+${aggregatedContent}
 
-Analyze:
-1. Weekly trends and patterns
-2. Recurring blockers (flag if appearing 3+ times)
-3. Strategic priorities emerging
-4. Domain maturity progression
-5. Risk assessment
-
-Return a JSON object with:
+Return a JSON object with weekly insights:
 {
   "keyPoints": ["weekly insight 1", ...],
   "decisions": ["strategic decision 1", ...],
-  "blockers": ["chronic blocker 1 (appeared 3+ times)", ...],
-  "actionItems": [{"task": "...", "owner": "...", "priority": "HIGH"}, ...],
+  "blockers": ["critical blocker 1", ...],
+  "actionItems": [...],
   "domainTags": ["domain1", ...],
-  "summary": "comprehensive weekly review"
+  "summary": "weekly strategic summary"
+}`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const messageContent = response.choices[0]?.message?.content;
+    const content = extractJsonContent(messageContent);
+    const parsed = JSON.parse(content);
+
+    return {
+      keyPoints: parsed.keyPoints || [],
+      decisions: parsed.decisions || [],
+      blockers: parsed.blockers || [],
+      actionItems: parsed.actionItems || [],
+      domainTags: parsed.domainTags || [],
+      summary: parsed.summary || "",
+    };
+  } catch (error) {
+    console.error("[LLM] Error in stage3WeeklyReview:", error);
+    throw error;
+  }
 }
 
-Return ONLY valid JSON.`;
-
-  const response = await invokeLLM({
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const messageContent = response.choices[0]?.message?.content;
-  const content = extractJsonContent(messageContent as string);
-  const parsed = JSON.parse(content);
-
-  return {
-    keyPoints: parsed.keyPoints || [],
-    decisions: parsed.decisions || [],
-    blockers: parsed.blockers || [],
-    actionItems: parsed.actionItems || [],
-    domainTags: parsed.domainTags || [],
-    summary: parsed.summary || "",
-  };
-}
-
-/**
- * Stage 4: Monthly Review
- * Strategic assessment and domain maturity updates
- */
 async function stage4MonthlyReview(
-  weeklySessions: ProcessingResult[]
+  weeklyReviews: ProcessingResult[]
 ): Promise<ProcessingResult> {
-  const monthlyContent = weeklySessions
-    .map((s, i) => `Week ${i + 1}: ${s.summary}`)
+  const aggregatedContent = weeklyReviews
+    .map(
+      (w, i) =>
+        `Week ${i + 1}:\nKey Points: ${w.keyPoints.join(", ")}\nDecisions: ${w.decisions.join(", ")}\nBlockers: ${w.blockers.join(", ")}`
+    )
     .join("\n\n");
 
-  const prompt = `You are an operations intelligence analyst. Conduct a comprehensive monthly strategic review.
+  const prompt = `As an operations strategist, synthesize these weekly reviews into a comprehensive monthly review with strategic recommendations.
 
-${monthlyContent}
+${aggregatedContent}
 
-Assess:
-1. Domain maturity progression (Early → Functional with gaps → Optimized)
-2. Strategic achievements this month
-3. Critical risks and blockers
-4. Recommended focus areas for next month
-5. Overall operational health score (0-100)
-
-Return a JSON object with:
+Return a JSON object with monthly strategic insights:
 {
-  "keyPoints": ["strategic achievement 1", ...],
-  "decisions": ["strategic decision 1", ...],
-  "blockers": ["critical risk 1", ...],
-  "actionItems": [{"task": "...", "owner": "...", "priority": "HIGH"}, ...],
+  "keyPoints": ["monthly strategic insight 1", ...],
+  "decisions": ["key decision 1", ...],
+  "blockers": ["critical blocker 1", ...],
+  "actionItems": [...],
   "domainTags": ["domain1", ...],
-  "summary": "comprehensive monthly strategic review with health assessment"
+  "summary": "monthly strategic summary with recommendations"
+}`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const messageContent = response.choices[0]?.message?.content;
+    const content = extractJsonContent(messageContent);
+    const parsed = JSON.parse(content);
+
+    return {
+      keyPoints: parsed.keyPoints || [],
+      decisions: parsed.decisions || [],
+      blockers: parsed.blockers || [],
+      actionItems: parsed.actionItems || [],
+      domainTags: parsed.domainTags || [],
+      summary: parsed.summary || "",
+    };
+  } catch (error) {
+    console.error("[LLM] Error in stage4MonthlyReview:", error);
+    throw error;
+  }
 }
 
-Return ONLY valid JSON.`;
-
-  const response = await invokeLLM({
-    messages: [{ role: "user", content: prompt }],
-  });
-
-  const messageContent = response.choices[0]?.message?.content;
-  const content = extractJsonContent(messageContent as string);
-  const parsed = JSON.parse(content);
-
-  return {
-    keyPoints: parsed.keyPoints || [],
-    decisions: parsed.decisions || [],
-    blockers: parsed.blockers || [],
-    actionItems: parsed.actionItems || [],
-    domainTags: parsed.domainTags || [],
-    summary: parsed.summary || "",
-  };
-}
-
-/**
- * Main processing function: Execute full 4-stage pipeline
- */
-export async function processMeetingFull4Stage(
-  meetingInput: string,
-  meetingType: string,
-  participants: string
-): Promise<ProcessingResult> {
-  // Stage 1: Single Meeting
-  const stage1Result = await stage1SingleMeeting(
-    meetingInput,
-    meetingType,
-    participants
+export async function processMeeting(input: {
+  meetingInput: string;
+  meetingType: string;
+  participants: string;
+}): Promise<ProcessingResult> {
+  return await stage1SingleMeeting(
+    input.meetingInput,
+    input.meetingType,
+    input.participants
   );
-
-  // For a single session, stages 2-4 would normally aggregate multiple sessions
-  // For now, we return Stage 1 result with a note that stages 2-4 require batch processing
-  return stage1Result;
 }
-
-export { stage1SingleMeeting, stage2DailyBatch, stage3WeeklyReview, stage4MonthlyReview };
