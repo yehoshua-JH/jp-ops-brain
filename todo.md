@@ -49,7 +49,7 @@
 - [x] Blockers view: description, first appeared, times appeared, status, domain tag
 - [x] Implement chronic blocker flag (3+ appearances)
 - [x] Add resolution note capability for blockers
-- [ ] Implement filtering by owner, status, domain, priority, date range
+- [x] Implement filtering by owner, status, domain, priority, date range - full filtering UI with search, date range, and clear buttons. 15 vitest tests all passing.
 
 ## Phase 7: Reports & Rollups
 - [x] Build Reports page with three rollup generators
