@@ -121,10 +121,104 @@
 - [ ] Test export functionality
 - [ ] Browser testing (Chrome/Safari)
 
-## Phase 15: Final Delivery & Checkpoint
+## Phase 15: Master Ops Brain - Data Model Expansion
+- [ ] Create employees table with contracts, skills, KPI tracking
+- [ ] Create clients table with engagement, financials, health scoring
+- [ ] Create issues table with severity, tracking, resolution
+- [ ] Create workflows table with steps and timeline
+- [ ] Create documents table with signature tracking
+- [ ] Create transitions table for employee/client changes
+- [ ] Implement database migrations via webdev_execute_sql
+- [ ] Create query helpers in server/db.ts for all new entities
+
+## Phase 16: Master Ops Brain - Backend API
+- [ ] Create tRPC procedures for employee CRUD
+- [ ] Create tRPC procedures for client CRUD
+- [ ] Create tRPC procedures for issue CRUD
+- [ ] Create tRPC procedures for workflow CRUD
+- [ ] Create tRPC procedures for document CRUD
+- [ ] Implement search procedures (global search across all entities)
+- [ ] Implement filter procedures (advanced filtering)
+- [ ] Implement analytics procedures (aggregations, reporting)
+
+## Phase 17: Master Ops Brain - Frontend Dashboard
+- [ ] Build Master Dashboard with summary cards
+- [ ] Implement global search bar
+- [ ] Create quick access navigation
+- [ ] Add recent activity feed
+- [ ] Build risk heatmap visualization
+- [ ] Create quick stats (revenue, utilization, health)
+
+## Phase 18: Master Ops Brain - Employee Directory
+- [ ] Build employee list with search/filter
+- [ ] Create employee detail card with contracts
+- [ ] Implement employee timeline (career history)
+- [ ] Add bulk actions (export, status change)
+- [ ] Create KPI tracking view
+- [ ] Build employee relationship mapping
+
+## Phase 19: Master Ops Brain - Client Management
+- [ ] Build client list with search/filter
+- [ ] Create client detail card with team members
+- [ ] Implement churn risk detection
+- [ ] Add document management (SOW/MSA tracking)
+- [ ] Build client timeline (key dates, transitions)
+- [ ] Create health score visualization
+- [ ] Implement early warning system for at-risk clients
+
+## Phase 20: Master Ops Brain - Issues & Risks Board
+- [ ] Build Kanban board (Not Started → In Progress → Resolved)
+- [ ] Implement issue detail view with context
+- [ ] Add risk scoring (severity × impact)
+- [ ] Create chronic issue flagging (3+ appearances)
+- [ ] Build issue relationship mapping
+- [ ] Implement resolution tracking
+
+## Phase 21: Master Ops Brain - Workflows & Transitions
+- [ ] Build workflow list and timeline
+- [ ] Implement workflow detail view with steps
+- [ ] Create transition tracker
+- [ ] Add workflow templates (onboarding, offboarding, etc.)
+- [ ] Build Gantt chart visualization
+- [ ] Implement workflow automation alerts
+
+## Phase 22: Master Ops Brain - Documents Hub
+- [ ] Build document library with search/filter
+- [ ] Implement document upload and versioning
+- [ ] Add signature tracking (pending, signed, expired)
+- [ ] Create document status dashboard
+- [ ] Build bulk export functionality
+- [ ] Implement document expiration alerts
+
+## Phase 23: Master Ops Brain - Advanced Search
+- [ ] Implement global search across all entities
+- [ ] Build advanced filter UI (multi-select, date ranges)
+- [ ] Create saved searches functionality
+- [ ] Build unified search results view
+- [ ] Implement search history
+- [ ] Add entity relationship display in results
+
+## Phase 24: Master Ops Brain - Analytics & Reporting
+- [ ] Build employee analytics dashboard
+- [ ] Create client analytics dashboard
+- [ ] Implement financial analytics (revenue, invoices)
+- [ ] Build workflow analytics (completion rates)
+- [ ] Create custom report builder
+- [ ] Implement data export (CSV, JSON, PDF)
+
+## Phase 25: Master Ops Brain - Integration & Testing
+- [ ] Integrate all pages into navigation
+- [ ] Test search and filtering across all entities
+- [ ] Test data ingestion pipeline
+- [ ] Write comprehensive vitest tests
+- [ ] Test relationship mapping and cross-entity queries
+- [ ] Performance testing (sub-second search)
+
+## Phase 26: Final Delivery & Checkpoint
 - [ ] Verify all features working end-to-end
 - [ ] Confirm Session 1 pre-loads on first launch
 - [ ] Test complete user workflow (login → process → query → export)
+- [ ] Test Master Ops Brain search and filtering
 - [ ] Create final checkpoint
 - [ ] Deliver to user with documentation
 

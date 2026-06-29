@@ -11,7 +11,7 @@ export default function Reports() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [output, setOutput] = useState("");
 
-  const listSessions = trpc.sessions.list.useQuery();
+  const listSessions = trpc.sessions.getAll.useQuery();
 
   const handleGenerateRollup = async (type: "daily" | "weekly" | "monthly") => {
     setIsGenerating(true);

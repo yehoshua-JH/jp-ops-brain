@@ -1,201 +1,131 @@
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, ChevronDown } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { ChevronDown, ChevronUp, Brain, Search, Calendar, Users } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function SessionLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [expandedSession, setExpandedSession] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [, navigate] = useLocation();
 
-  const listSessions = trpc.sessions.list.useQuery();
+  const { data: sessions, isLoading } = trpc.sessions.getAll.useQuery();
 
-  const filteredSessions = useMemo(() => {
-    if (!listSessions.data) return [];
+  const sorted = useMemo(() => {
+    if (!sessions) return [];
+    const q = searchTerm.toLowerCase();
+    const filtered = q
+      ? sessions.filter((s) =>
+          s.sessionNumber.toString().includes(q) ||
+          (s.meetingType ?? "").toLowerCase().includes(q) ||
+          (s.executiveSummary ?? "").toLowerCase().includes(q) ||
+          (s.participants ?? "").toLowerCase().includes(q)
+        )
+      : sessions;
+    return [...filtered].sort((a, b) => b.sessionNumber - a.sessionNumber);
+  }, [sessions, searchTerm]);
 
-    return listSessions.data.filter((session) => {
-      const searchLower = searchTerm.toLowerCase();
-      return (
-        session.sessionNumber.toString().includes(searchLower) ||
-        session.meetingType.toLowerCase().includes(searchLower) ||
-        session.date.toString().toLowerCase().includes(searchLower) ||
-        session.participants?.some((p: string) => p.toLowerCase().includes(searchLower))
-      );
-    });
-  }, [listSessions.data, searchTerm]);
-
-  if (listSessions.isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-      </div>
-    );
+  function parseJson(str: string | null | undefined): string[] {
+    try { return JSON.parse(str ?? "[]") ?? []; } catch { return []; }
   }
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Session Library</h1>
-        <p className="text-muted-foreground mt-2">
-          Browse all processed sessions with full search and filtering capabilities.
-        </p>
+    <div className="min-h-screen bg-[#0a0a14] text-white p-6">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-white">Session Library</h1>
+          <p className="text-sm text-white/40">{sessions?.length ?? 0} sessions · All operational intelligence</p>
+        </div>
+        <Button onClick={() => navigate("/voice")} className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2 text-sm">
+          <Brain className="w-4 h-4" />Ask about sessions
+        </Button>
       </div>
 
-      <Card className="p-6">
+      <div className="relative mb-4">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
         <Input
-          placeholder="Search by session #, date, type, or participant..."
+          placeholder="Search sessions, decisions, participants..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="mb-6"
+          className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-indigo-500"
         />
+      </div>
 
-        {filteredSessions.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            {listSessions.data?.length === 0
-              ? "No sessions yet. Process your first meeting to get started."
-              : "No sessions match your search."}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {filteredSessions.map((session) => (
-              <Collapsible
-                key={session.id}
-                open={expandedSession === session.id}
-                onOpenChange={(open) => setExpandedSession(open ? session.id : null)}
-              >
-                <CollapsibleTrigger asChild>
-                  <button className="w-full">
-                    <Card className="p-4 hover:bg-muted transition-colors">
-                      <div className="flex justify-between items-start gap-4">
-                        <div className="text-left flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold">Session #{session.sessionNumber}</span>
-                            <Badge variant="outline">{session.meetingType}</Badge>
-                            <Badge variant="secondary">{session.inputFormat}</Badge>
-                          </div>
-                          <div className="text-sm text-muted-foreground mt-1">
-                            {new Date(session.date).toLocaleDateString("en-US", {
-                              weekday: "short",
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })}
-                          </div>
-                          {session.participants && session.participants.length > 0 && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {session.participants.join(", ")}
-                            </div>
-                          )}
-                        </div>
-                        <ChevronDown
-                          className={`w-5 h-5 transition-transform ${
-                            expandedSession === session.id ? "rotate-180" : ""
-                          }`}
-                        />
-                      </div>
-                    </Card>
-                  </button>
-                </CollapsibleTrigger>
-
-                <CollapsibleContent className="mt-2">
-                  <Card className="p-6 bg-muted/30 space-y-4">
-                    {session.executiveSummary && (
-                      <div>
-                        <h4 className="font-semibold text-sm mb-2">Executive Summary</h4>
-                        <p className="text-sm text-muted-foreground">{session.executiveSummary}</p>
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 bg-white/5 rounded-xl" />)}
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="text-center py-12 text-white/30">
+          {searchTerm ? "No sessions match your search." : "No sessions yet. Drop a recording to get started."}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {sorted.map((s) => {
+            const isOpen = expandedId === s.id;
+            const decisions = parseJson(s.decisionsMade);
+            const actions = parseJson(s.actionItems as string);
+            const blockers = parseJson(s.activeBlockers);
+            const keyPoints = parseJson(s.keyPoints);
+            const participants = parseJson(s.participants);
+            return (
+              <div key={s.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <button
+                  className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/5 transition-colors"
+                  onClick={() => setExpandedId(isOpen ? null : s.id)}
+                >
+                  <span className="text-indigo-400 font-mono text-sm w-10 flex-shrink-0">#{s.sessionNumber}</span>
+                  <div className="flex items-center gap-2 text-white/40 text-xs w-28 flex-shrink-0">
+                    <Calendar className="w-3 h-3" />{new Date(s.date).toLocaleDateString()}
+                  </div>
+                  <p className="text-sm text-white/70 flex-1 truncate">{s.executiveSummary}</p>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <Badge variant="outline" className="text-xs border-0 bg-white/5 text-white/30">{s.meetingType}</Badge>
+                    {decisions.length > 0 && <Badge variant="outline" className="text-xs border-0 bg-indigo-500/10 text-indigo-400">{decisions.length} decisions</Badge>}
+                    {blockers.length > 0 && <Badge variant="outline" className="text-xs border-0 bg-red-500/10 text-red-400">{blockers.length} blockers</Badge>}
+                    {isOpen ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}
+                  </div>
+                </button>
+                {isOpen && (
+                  <div className="px-5 pb-5 border-t border-white/10 pt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    {participants.length > 0 && (
+                      <div className="flex items-center gap-2 col-span-full">
+                        <Users className="w-3 h-3 text-white/30" />
+                        <span className="text-xs text-white/40">{participants.join(", ")}</span>
                       </div>
                     )}
-
-                    {session.operationalSummary && (
+                    {keyPoints.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Operational Summary</h4>
-                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                          {session.operationalSummary}
-                        </p>
+                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Key Points</p>
+                        <ul className="space-y-1">{keyPoints.map((kp, i) => <li key={i} className="text-xs text-white/60 flex gap-2"><span className="text-indigo-400">·</span>{kp}</li>)}</ul>
                       </div>
                     )}
-
-                    {session.keyPoints && session.keyPoints.length > 0 && (
+                    {decisions.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Key Points</h4>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {session.keyPoints.map((point: any, idx: number) => (
-                            <li key={idx} className="flex gap-2">
-                              <span className="text-xs bg-muted px-2 py-1 rounded whitespace-nowrap">
-                                {point.domain}
-                              </span>
-                              <span>{point.point}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Decisions</p>
+                        <ul className="space-y-1">{decisions.map((d, i) => <li key={i} className="text-xs text-white/60 flex gap-2"><span className="text-emerald-400">✓</span>{d}</li>)}</ul>
                       </div>
                     )}
-
-                    {session.activeBlockers && session.activeBlockers.length > 0 && (
+                    {blockers.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Active Blockers</h4>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {session.activeBlockers.map((blocker: string, idx: number) => (
-                            <li key={idx} className="flex gap-2">
-                              <span className="text-red-600">•</span>
-                              <span>{blocker}</span>
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Blockers</p>
+                        <ul className="space-y-1">{blockers.map((b, i) => <li key={i} className="text-xs text-white/60 flex gap-2"><span className="text-red-400">!</span>{b}</li>)}</ul>
                       </div>
                     )}
-
-                    {session.actionItems && session.actionItems.length > 0 && (
+                    {actions.length > 0 && (
                       <div>
-                        <h4 className="font-semibold text-sm mb-2">Action Items</h4>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {session.actionItems.map((item: any, idx: number) => (
-                            <li key={idx} className="flex gap-2">
-                              <span className="text-blue-600">→</span>
-                              <span>
-                                <strong>{item.owner}:</strong> {item.task}
-                                {item.deadline && (
-                                  <span className="text-xs text-muted-foreground ml-2">
-                                    Due: {new Date(item.deadline).toLocaleDateString()}
-                                  </span>
-                                )}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                        <p className="text-xs font-semibold text-white/50 uppercase tracking-wider mb-2">Action Items</p>
+                        <ul className="space-y-1">{(actions as Array<string | { task?: string }>).map((a, i) => <li key={i} className="text-xs text-white/60 flex gap-2"><span className="text-yellow-400">→</span>{typeof a === "string" ? a : (a.task ?? JSON.stringify(a))}</li>)}</ul>
                       </div>
                     )}
-
-                    {session.decisionsMade && session.decisionsMade.length > 0 && (
-                      <div>
-                        <h4 className="font-semibold text-sm mb-2">Decisions Made</h4>
-                        <ul className="text-sm text-muted-foreground space-y-1">
-                          {session.decisionsMade.map((decision: string, idx: number) => (
-                            <li key={idx} className="flex gap-2">
-                              <span className="text-green-600">✓</span>
-                              <span>{decision}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </Card>
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {filteredSessions.length > 0 && (
-        <div className="text-sm text-muted-foreground text-center">
-          Showing {filteredSessions.length} of {listSessions.data?.length} sessions
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

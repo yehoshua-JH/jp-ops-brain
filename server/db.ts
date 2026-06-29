@@ -13,6 +13,9 @@ import {
   timeline,
   quickNotes,
   settings,
+  employees,
+  clients,
+  processes,
 } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
@@ -482,4 +485,92 @@ export async function setSetting(key: string, value: string) {
   } else {
     await db.insert(settings).values({ key, value });
   }
+}
+
+// ─── Employees ────────────────────────────────────────────────────────────────
+export async function getAllEmployees() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(employees).orderBy(employees.name);
+}
+
+export async function getEmployeeById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(employees).where(eq(employees.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertEmployee(data: typeof employees.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.id) {
+    await db.update(employees).set(data).where(eq(employees.id, data.id));
+  } else {
+    await db.insert(employees).values(data);
+  }
+}
+
+// ─── Clients ──────────────────────────────────────────────────────────────────
+export async function getAllClients() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(clients).orderBy(clients.name);
+}
+
+export async function getClientById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(clients).where(eq(clients.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertClient(data: typeof clients.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.id) {
+    await db.update(clients).set(data).where(eq(clients.id, data.id));
+  } else {
+    await db.insert(clients).values(data);
+  }
+}
+
+// ─── Processes ────────────────────────────────────────────────────────────────
+export async function getAllProcesses() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(processes).orderBy(processes.category, processes.name);
+}
+
+export async function getProcessById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(processes).where(eq(processes.id, id)).limit(1);
+  return result[0] ?? null;
+}
+
+export async function upsertProcess(data: typeof processes.$inferInsert) {
+  const db = await getDb();
+  if (!db) return;
+  if (data.id) {
+    await db.update(processes).set(data).where(eq(processes.id, data.id));
+  } else {
+    await db.insert(processes).values(data);
+  }
+}
+
+export async function getLatestDomainMaturity() {
+  const db = await getDb();
+  if (!db) return [];
+  // Get the most recent maturity record per domain
+  const result = await db
+    .select()
+    .from(sessionDomainMaturity)
+    .orderBy(sessionDomainMaturity.createdAt);
+  // Return only the latest per domainId
+  const latestMap = new Map<number, typeof result[0]>();
+  for (const row of result) {
+    latestMap.set(row.domainId, row);
+  }
+  return Array.from(latestMap.values());
 }

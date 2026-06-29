@@ -281,3 +281,92 @@ export const settings = mysqlTable("settings", {
 
 export type Setting = typeof settings.$inferSelect;
 export type InsertSetting = typeof settings.$inferInsert;
+
+/**
+ * Employees — people who work at or for JivePilot.
+ */
+export const employees = mysqlTable(
+  "employees",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    role: varchar("role", { length: 100 }).notNull(),
+    department: varchar("department", { length: 100 }),
+    status: mysqlEnum("status", ["active", "inactive", "at_risk"]).default("active").notNull(),
+    criticalityScore: int("criticalityScore").default(5).notNull(), // 1-10
+    replacementReadiness: int("replacementReadiness").default(0).notNull(), // 0-100%
+    processesOwned: text("processesOwned"), // JSON array of process names
+    backupPerson: varchar("backupPerson", { length: 100 }),
+    skills: text("skills"), // JSON array of skills
+    notes: text("notes"),
+    hireDate: timestamp("hireDate"),
+    terminationDate: timestamp("terminationDate"),
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    nameIdx: index("emp_name_idx").on(table.name),
+    statusIdx: index("emp_status_idx").on(table.status),
+  })
+);
+
+export type Employee = typeof employees.$inferSelect;
+export type InsertEmployee = typeof employees.$inferInsert;
+
+/**
+ * Clients — companies JivePilot serves.
+ */
+export const clients = mysqlTable(
+  "clients",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 100 }).notNull(),
+    status: mysqlEnum("status", ["active", "at_risk", "churned", "prospect"]).default("active").notNull(),
+    healthScore: int("healthScore").default(70).notNull(), // 0-100
+    monthlyRevenue: decimal("monthlyRevenue", { precision: 10, scale: 2 }),
+    teamSize: int("teamSize").default(0).notNull(),
+    startDate: timestamp("startDate"),
+    notes: text("notes"),
+    riskFlags: text("riskFlags"), // JSON array of risk descriptions
+    assignedTeam: text("assignedTeam"), // JSON array of employee names
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    nameIdx: index("client_name_idx").on(table.name),
+    statusIdx: index("client_status_idx").on(table.status),
+  })
+);
+
+export type Client = typeof clients.$inferSelect;
+export type InsertClient = typeof clients.$inferInsert;
+
+/**
+ * Processes — documented SOPs and workflows.
+ */
+export const processes = mysqlTable(
+  "processes",
+  {
+    id: int("id").autoincrement().primaryKey(),
+    name: varchar("name", { length: 200 }).notNull(),
+    category: varchar("category", { length: 100 }).notNull(), // "HR", "Finance", "Client Ops", etc.
+    owner: varchar("owner", { length: 100 }),
+    backupOwner: varchar("backupOwner", { length: 100 }),
+    documentationPct: int("documentationPct").default(0).notNull(), // 0-100%
+    status: mysqlEnum("status", ["documented", "partial", "undocumented", "needs_update"]).default("undocumented").notNull(),
+    automationOpportunity: mysqlEnum("automationOpportunity", ["high", "medium", "low", "none"]).default("none").notNull(),
+    description: text("description"),
+    steps: text("steps"), // JSON array of step strings
+    domainTag: varchar("domainTag", { length: 50 }),
+    linkedSessionIds: text("linkedSessionIds"), // JSON array of session numbers where discussed
+    createdAt: timestamp("createdAt").defaultNow().notNull(),
+    updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  },
+  (table) => ({
+    categoryIdx: index("proc_category_idx").on(table.category),
+    ownerIdx: index("proc_owner_idx").on(table.owner),
+  })
+);
+
+export type Process = typeof processes.$inferSelect;
+export type InsertProcess = typeof processes.$inferInsert;

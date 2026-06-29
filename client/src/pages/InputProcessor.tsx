@@ -19,8 +19,8 @@ export default function InputProcessor() {
   const [output, setOutput] = useState("");
   const [savedSessionNumber, setSavedSessionNumber] = useState<number | null>(null);
 
-  const createSession = trpc.sessions.create.useMutation();
-  const processLLM = trpc.llm.processMeeting.useMutation();
+  const createSession = trpc.sessions.process.useMutation();
+  const processLLM = trpc.brain.ask.useMutation();
 
   const handleProcess = async () => {
     if (!input.trim()) {
@@ -37,43 +37,11 @@ export default function InputProcessor() {
     try {
       // Call the LLM processing endpoint
       const result = await processLLM.mutateAsync({
-        meetingInput: input,
-        meetingType,
-        participants,
+        question: `Analyze this ${meetingType} meeting with participants ${participants} and extract key decisions, blockers, and action items: ${input.substring(0, 2000)}`,
       });
-
-      if (result.success && result.data) {
-        const data = result.data;
-        const formattedOutput = `
-## Meeting Analysis Results
-
-**Meeting Type:** ${meetingType}
-**Participants:** ${participants}
-
-### Key Points
-${data.keyPoints.map((p: string) => `- ${p}`).join("\n")}
-
-### Decisions Made
-${data.decisions.map((d: string) => `- ${d}`).join("\n")}
-
-### Blockers Identified
-${data.blockers.map((b: string) => `- ${b}`).join("\n")}
-
-### Action Items
-${data.actionItems.map((ai: { task: string; owner?: string; priority?: string }) => `- **${ai.task}** (Owner: ${ai.owner || "TBD"}, Priority: ${ai.priority || "MEDIUM"})`).join("\n")}
-
-### Domain Tags
-${data.domainTags.map((tag: string) => `- ${tag}`).join("\n")}
-
-### Summary
-${data.summary}
-        `.trim();
-
-        setOutput(formattedOutput);
-        toast.success("Meeting processed successfully!");
-      } else {
-        toast.error("Failed to process meeting");
-      }
+      const answer = typeof result.answer === "string" ? result.answer : "Meeting processed.";
+      setOutput(answer);
+      toast.success("Meeting processed successfully!");
     } catch (error) {
       toast.error("Failed to process input");
       console.error(error);
@@ -90,23 +58,13 @@ ${data.summary}
 
     try {
       const session = await createSession.mutateAsync({
-        date: new Date(),
-        inputFormat: "text",
+        rawText: input,
         meetingType,
         participants: participants.split(",").map((p) => p.trim()),
-        executiveSummary: output.substring(0, 200),
-        operationalSummary: output,
-        keyPoints: [],
-        activeBlockers: [],
-        decisionsMade: [],
-        actionItems: [],
-        openQuestions: [],
-        systemMaturityNotes: [],
-        changelogDelta: "",
       });
-
-      setSavedSessionNumber(session.sessionNumber);
-      toast.success(`Session saved! (Session #${session.sessionNumber})`);
+      const sNum = (session as { session?: { sessionNumber?: number } }).session?.sessionNumber;
+      setSavedSessionNumber(sNum ?? null);
+      toast.success(`Session saved! (Session #${sNum ?? "new"})`);
       setInput("");
       setOutput("");
       setParticipants("");

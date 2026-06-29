@@ -20,8 +20,8 @@ export default function ActionItemsBlockers() {
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
   const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
 
-  const listActionItems = trpc.actionItems.list.useQuery();
-  const listBlockers = trpc.blockers.list.useQuery();
+  const listActionItems = trpc.actionItems.getAll.useQuery();
+  const listBlockers = trpc.blockers.getAll.useQuery();
 
   if (listActionItems.isLoading || listBlockers.isLoading) {
     return (

@@ -1,394 +1,436 @@
-import { COOKIE_NAME } from "@shared/const";
-import { getSessionCookieOptions } from "./_core/cookies";
-import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import * as db from "./db";
 import { TRPCError } from "@trpc/server";
+import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { systemRouter } from "./_core/systemRouter";
+import * as db from "./db";
 import { processMeeting } from "./llmProcessing";
+import { invokeLLM } from "./_core/llm";
+import { transcribeAudio } from "./_core/voiceTranscription";
 
-export const appRouter = router({
-  system: systemRouter,
-  auth: router({
-    me: publicProcedure.query((opts) => opts.ctx.user),
-    logout: publicProcedure.mutation(({ ctx }) => {
-      const cookieOptions = getSessionCookieOptions(ctx.req);
-      ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
-      return {
-        success: true,
-      } as const;
-    }),
+// ─── Auth ────────────────────────────────────────────────────────────────────
+const authRouter = router({
+  me: protectedProcedure.query(({ ctx }) => ctx.user),
+  logout: protectedProcedure.mutation(async ({ ctx }) => {
+    ctx.res.clearCookie("app_session");
+    return { success: true };
+  }),
+});
+
+// ─── Sessions ────────────────────────────────────────────────────────────────
+const sessionsRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getAllSessions();
   }),
 
-  // ============================================================================
-  // DOMAINS
-  // ============================================================================
-  domains: router({
-    list: publicProcedure.query(async () => {
-      return await db.getAllDomains();
+  getById: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getSessionById(input.id);
     }),
 
-    getByTag: publicProcedure.input(z.object({ tag: z.string() })).query(async ({ input }) => {
-      return await db.getDomainByTag(input.tag);
+  getByNumber: protectedProcedure
+    .input(z.object({ sessionNumber: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getSessionByNumber(input.sessionNumber);
     }),
 
-    updateIdealEndState: protectedProcedure
-      .input(
-        z.object({
-          domainId: z.number(),
-          idealEndState: z.string(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await db.updateDomainIdealEndState(input.domainId, input.idealEndState);
-        return { success: true };
-      }),
-
-    seedDomains: protectedProcedure.mutation(async () => {
-      const existingDomains = await db.getAllDomains();
-      if (existingDomains.length > 0) {
-        return { success: false, message: "Domains already seeded" };
-      }
-
-      const domainsToSeed = [
-        {
-          tag: "TIME-TRACKING",
-          name: "Employee time tracking",
-          tier: "Core ops",
-          color: "teal",
-          idealEndState:
-            "Every employee logs time daily with zero chasing. Time entries are categorized by task type and linked to a client and project. A manager can pull a complete, accurate time report for any employee or client in under 60 seconds. Discrepancies are caught automatically before invoicing.",
-        },
-        {
-          tag: "INVOICING",
-          name: "Invoicing & billing",
-          tier: "Core ops",
-          color: "blue",
-          idealEndState:
-            "Invoices are generated automatically from time-tracking data, customized per client billing schedule (retainer vs. hourly), reviewed in one click, and sent without manual input. Zero invoicing errors. Average days to payment tracked and trending down.",
-        },
-        {
-          tag: "TALENT-OPS",
-          name: "Talent operations",
-          tier: "Core ops",
-          color: "purple",
-          idealEndState:
-            "A structured pipeline from sourcing to placement to ongoing performance management. Every professional has a profile, clear KPIs, a weekly reporting cadence, and a primary contact. Onboarding takes under 48 hours from match to embedded. Retention tracked and issues caught early.",
-        },
-        {
-          tag: "TECH-PLATFORM",
-          name: "Internal tech platform",
-          tier: "Core ops",
-          color: "gray",
-          idealEndState:
-            "A stable, bug-free platform where any team member performs core tasks without needing a developer. New features go through a structured backlog. Role-based permissions are self-managed. Single developer dependency eliminated.",
-        },
-        {
-          tag: "CLIENT-OPS",
-          name: "Client operations & account management",
-          tier: "Client & revenue",
-          color: "amber",
-          idealEndState:
-            "Every client has a documented account profile, defined billing setup, agreed KPIs, and a weekly update cadence. Client health visible at a glance. Account managers proactively flag issues before clients raise them. Renewals happen naturally.",
-        },
-        {
-          tag: "CLIENT-PORTAL",
-          name: "Client portal & reporting",
-          tier: "Client & revenue",
-          color: "green",
-          idealEndState:
-            "Every client has login access to a portal showing their embedded talent's hours, KPI progress, weekly updates, and invoices in real time. Zero 'can you send me an update?' requests — clients self-serve.",
-        },
-        {
-          tag: "FINANCE",
-          name: "Finance & cash flow",
-          tier: "Client & revenue",
-          color: "orange",
-          idealEndState:
-            "Revenue is predictable, payroll goes out on time every month, and cash flow is visible 30–60 days ahead. All billing is ACH or equivalent. Zero revenue lost to billing errors or missed invoices. Days Sales Outstanding under 15 days.",
-        },
-        {
-          tag: "TEAM-MGMT",
-          name: "Internal team management",
-          tier: "Client & revenue",
-          color: "pink",
-          idealEndState:
-            "Every internal team member has documented responsibilities, clear reporting lines, and exactly the tools and permissions they need. New team members fully operational within 5 business days. Founder removed from all recurring operational tasks within 90 days.",
-        },
-        {
-          tag: "SALES-BD",
-          name: "Sales & business development",
-          tier: "Growth & product",
-          color: "indigo",
-          idealEndState:
-            "A repeatable inbound and outbound pipeline that converts consistently. Every lead tracked and followed up systematically. Website booking flow works flawlessly. Sales conversations led by operators who deeply understand the service.",
-        },
-        {
-          tag: "AI-SYSTEMS",
-          name: "AI systems & automation",
-          tier: "Growth & product",
-          color: "cyan",
-          idealEndState:
-            "At least 3 internal ops workflows automated via AI within 6 months. AI products have documented delivery playbooks. AI capability cited as a reason for choosing JivePilot in new client intake. JivePilot uses internally what it sells externally.",
-        },
-      ];
-
-      await db.insertDomains(domainsToSeed);
-      return { success: true, count: domainsToSeed.length };
-    }),
-  }),
-
-  // ============================================================================
-  // SESSIONS
-  // ============================================================================
-  sessions: router({
-    create: protectedProcedure
-      .input(
-        z.object({
-          date: z.date(),
-          inputFormat: z.string(),
-          meetingType: z.string(),
-          participants: z.array(z.string()),
-          tone: z.string().optional(),
-          executiveSummary: z.string(),
-          operationalSummary: z.string(),
-          keyPoints: z.array(
-            z.object({
-              domain: z.string(),
-              point: z.string(),
-            })
-          ),
-          activeBlockers: z.array(z.string()),
-          decisionsMade: z.array(z.string()),
-          actionItems: z.array(
-            z.object({
-              owner: z.string(),
-              task: z.string(),
-              deadline: z.string().optional(),
-              priority: z.enum(["HIGH", "MED", "LOW"]),
-            })
-          ),
-          openQuestions: z.array(z.string()),
-          systemMaturityNotes: z.array(
-            z.object({
-              domain: z.string(),
-              maturity: z.string(),
-              change: z.string().optional(),
-            })
-          ),
-          changelogDelta: z.string(),
-        })
-      )
-      .mutation(async ({ input }) => {
+  process: protectedProcedure
+    .input(
+      z.object({
+        rawText: z.string().min(1),
+        meetingType: z.string().default("ops"),
+        participants: z.array(z.string()).default([]),
+        meetingDate: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
         const sessionNumber = await db.getNextSessionNumber();
-
+        const result = await processMeeting({
+          meetingInput: input.rawText,
+          meetingType: input.meetingType,
+          participants: input.participants.join(", "),
+        });
         const session = await db.createSession({
           sessionNumber,
-          date: input.date,
-          inputFormat: input.inputFormat,
+          date: input.meetingDate ? new Date(input.meetingDate) : new Date(),
+          inputFormat: "Raw transcript",
           meetingType: input.meetingType,
           participants: JSON.stringify(input.participants),
-          tone: input.tone,
-          executiveSummary: input.executiveSummary,
-          operationalSummary: input.operationalSummary,
-          keyPoints: JSON.stringify(input.keyPoints),
-          activeBlockers: JSON.stringify(input.activeBlockers),
-          decisionsMade: JSON.stringify(input.decisionsMade),
-          actionItems: JSON.stringify(input.actionItems),
-          openQuestions: JSON.stringify(input.openQuestions),
-          systemMaturityNotes: JSON.stringify(input.systemMaturityNotes),
-          changelogDelta: input.changelogDelta,
+          tone: "neutral",
+          executiveSummary: result.summary,
+          operationalSummary: result.summary,
+          keyPoints: JSON.stringify(result.keyPoints || []),
+          activeBlockers: JSON.stringify(result.blockers || []),
+          decisionsMade: JSON.stringify(result.decisions || []),
+          actionItems: JSON.stringify(result.actionItems || []),
+          openQuestions: JSON.stringify([]),
+          systemMaturityNotes: JSON.stringify([]),
+          changelogDelta: "",
+        });
+        return { success: true, session };
+      } catch (error) {
+        console.error("[Sessions] Process error:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to process session" });
+      }
+    }),
+});
+
+// ─── Action Items ─────────────────────────────────────────────────────────────
+const actionItemsRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getAllActionItems();
+  }),
+
+  getOpen: protectedProcedure.query(async () => {
+    return await db.getActionItemsByStatus("open");
+  }),
+
+  getByOwner: protectedProcedure
+    .input(z.object({ owner: z.string() }))
+    .query(async ({ input }) => {
+      return await db.getActionItemsByOwner(input.owner);
+    }),
+
+  updateStatus: protectedProcedure
+    .input(z.object({ id: z.number(), status: z.enum(["open", "complete"]) }))
+    .mutation(async ({ input }) => {
+      await db.updateActionItemStatus(input.id, input.status);
+      return { success: true };
+    }),
+});
+
+// ─── Blockers ─────────────────────────────────────────────────────────────────
+const blockersRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getAllBlockers();
+  }),
+
+  getOpen: protectedProcedure.query(async () => {
+    return await db.getBlockersByStatus("open");
+  }),
+
+  getChronic: protectedProcedure.query(async () => {
+    return await db.getChronicBlockers();
+  }),
+
+  resolve: protectedProcedure
+    .input(z.object({ id: z.number(), resolutionNote: z.string() }))
+    .mutation(async ({ input }) => {
+      await db.resolveBlocker(input.id, input.resolutionNote);
+      return { success: true };
+    }),
+});
+
+// ─── Domains ──────────────────────────────────────────────────────────────────
+const domainsRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    const allDomains = await db.getAllDomains();
+    const allMaturity = await db.getLatestDomainMaturity();
+    return allDomains.map((d) => {
+      const maturity = allMaturity.find((m) => m.domainId === d.id);
+      const maturityMap: Record<string, number> = {
+        "Not started": 10, "Early": 25, "Developing": 40,
+        "Functional with gaps": 60, "Solid": 80, "World-class": 100,
+      };
+      return {
+        ...d,
+        currentMaturityScore: maturity ? (maturityMap[maturity.maturityLevel] ?? 0) : 0,
+        currentMaturityLevel: maturity?.maturityLevel ?? "Not started",
+        trend: maturity?.changeFromPrevious === "Improved" ? "improving"
+          : maturity?.changeFromPrevious === "Regressed" ? "declining" : "stable",
+      };
+    });
+  }),
+
+  getMaturityHistory: protectedProcedure
+    .input(z.object({ domainId: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getSessionDomainMaturityByDomain(input.domainId);
+    }),
+
+  updateIdealEndState: protectedProcedure
+    .input(z.object({ domainId: z.number(), idealEndState: z.string() }))
+    .mutation(async ({ input }) => {
+      await db.updateDomainIdealEndState(input.domainId, input.idealEndState);
+      return { success: true };
+    }),
+});
+
+// ─── Timeline ─────────────────────────────────────────────────────────────────
+const timelineRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getTimelineEntries();
+  }),
+});
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+const reportsRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getRollupsByType("Daily Rollup");
+  }),
+
+  generateDaily: protectedProcedure
+    .input(z.object({ sessionIds: z.array(z.number()) }))
+    .mutation(async ({ input }) => {
+      try {
+        const sessionsList = await Promise.all(input.sessionIds.map((id) => db.getSessionById(id)));
+        const valid = sessionsList.filter((s): s is NonNullable<typeof s> => s != null);
+        if (!valid.length) throw new Error("No valid sessions");
+        return { success: true, count: valid.length };
+      } catch (error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate daily rollup" });
+      }
+    }),
+});
+
+// ─── Voice & AI Brain ─────────────────────────────────────────────────────────
+const brainRouter = router({
+  // Transcribe uploaded audio recording
+  transcribeRecording: protectedProcedure
+    .input(
+      z.object({
+        audioUrl: z.string().url(),
+        language: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        const result = await transcribeAudio({
+          audioUrl: input.audioUrl,
+          language: input.language || "en",
+        });
+        if ("error" in result) {
+          throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: result.error });
+        }
+        return { success: true, transcript: result.text, language: result.language };
+      } catch (error) {
+        console.error("[Brain] Transcription error:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to transcribe audio" });
+      }
+    }),
+
+  // AI Q&A — ask the brain anything about JivePilot operations
+  ask: protectedProcedure
+    .input(
+      z.object({
+        question: z.string().min(1),
+        conversationHistory: z
+          .array(z.object({ role: z.enum(["user", "assistant"]), content: z.string() }))
+          .optional()
+          .default([]),
+      })
+    )
+    .mutation(async ({ input }) => {
+      try {
+        // Gather operational context from the database
+        const [allSessions, openBlockers, openActions, domains] = await Promise.all([
+          db.getAllSessions(),
+          db.getBlockersByStatus("open"),
+          db.getActionItemsByStatus("open"),
+          db.getAllDomains(),
+        ]);
+
+        // Build a rich context string from real data
+        const recentSessions = allSessions.slice(-10);
+        const sessionContext = recentSessions
+          .map(
+            (s) =>
+              `Session ${s.sessionNumber} (${new Date(s.date).toLocaleDateString()}): ${s.executiveSummary}`
+          )
+          .join("\n");
+
+        const blockerContext = openBlockers
+          .slice(0, 10)
+          .map((b) => `[${b.domainTag}] ${b.description} (appeared ${b.timesAppeared}x)`)
+          .join("\n");
+
+        const actionContext = openActions
+          .slice(0, 15)
+          .map((a) => `${a.owner}: ${a.task} [${a.priority}]${a.deadline ? ` due ${new Date(a.deadline).toLocaleDateString()}` : ""}`)
+          .join("\n");
+
+        const domainContext = domains
+          .map((d) => `${d.name}: ${d.idealEndState}`)
+          .join("\n");
+
+        const systemPrompt = `You are the JivePilot Ops Brain — an AI assistant with deep knowledge of JivePilot's operations, team, clients, and processes. You answer questions concisely and accurately based on the operational data below.
+
+COMPANY: JivePilot — a staffing and operations company that places contractors with clients. Key people: Yehoshua (CEO/Founder), Reef (Operations), Charne (HR Lead, new), Mike (Finance/Sales), Kim (Talk & Save, expanding hours), Alex (Talk & Save, new hire), Yyer (Talk & Save SEO, transitioning out), Elizabeth (Zip Kosher, fired), Melissa (Zip Kosher, part-time).
+
+ACTIVE CLIENTS: Talk & Save (healthy, expanding), Zip Kosher (at risk, down to 0.5 FTE after Elizabeth fired), Jacob's Real Estate (critical risk, requesting churn after 1 month), Noma (ongoing).
+
+RECENT SESSION SUMMARIES (last 10):
+${sessionContext}
+
+OPEN BLOCKERS (${openBlockers.length} total):
+${blockerContext || "None currently"}
+
+OPEN ACTION ITEMS (${openActions.length} total):
+${actionContext || "None currently"}
+
+OPERATIONAL DOMAINS:
+${domainContext}
+
+Answer the user's question based on this data. Be specific and cite sources (e.g., "Based on Session 42..."). If you don't have enough data to answer, say so clearly. Keep answers concise but complete. Speak like a trusted chief of staff, not a generic AI.`;
+
+        const messages = [
+          ...input.conversationHistory.map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+          { role: "user" as const, content: input.question },
+        ];
+
+        const response = await invokeLLM({
+          messages: [{ role: "system", content: systemPrompt }, ...messages],
         });
 
-        // Create action items
-        for (const item of input.actionItems) {
-          await db.createActionItem({
-            sessionId: sessionNumber,
-            owner: item.owner,
-            task: item.task,
-            deadline: item.deadline ? new Date(item.deadline) : undefined,
-            priority: item.priority,
-            status: "open",
-            domainTag: undefined,
-            sourceSession: sessionNumber,
-          });
-        }
-
-        // Create or update blockers
-        for (const blocker of input.activeBlockers) {
-          const blockerRecord = await db.getOrCreateBlocker(
-            blocker,
-            "GENERAL",
-            sessionNumber
-          );
-          if (blockerRecord) {
-            await db.addBlockerSession(blockerRecord.id, sessionNumber);
-            if (blockerRecord.id) {
-              const newCount = blockerRecord.timesAppeared + 1;
-              await db.updateBlockerTimesAppeared(blockerRecord.id, newCount);
-            }
-          }
-        }
-
-        return { sessionNumber, success: true };
-      }),
-
-    list: publicProcedure.query(async () => {
-      const allSessions = await db.getAllSessions();
-      return allSessions.map((s) => ({
-        ...s,
-        participants: JSON.parse(s.participants),
-        keyPoints: JSON.parse(s.keyPoints),
-        activeBlockers: JSON.parse(s.activeBlockers),
-        decisionsMade: JSON.parse(s.decisionsMade),
-        actionItems: JSON.parse(s.actionItems),
-        openQuestions: JSON.parse(s.openQuestions),
-        systemMaturityNotes: JSON.parse(s.systemMaturityNotes),
-      }));
+        const answer = response.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+        return { success: true, answer };
+      } catch (error) {
+        console.error("[Brain] Ask error:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to process question" });
+      }
     }),
 
-    getById: publicProcedure.input(z.object({ id: z.number() })).query(async ({ input }) => {
-      const session = await db.getSessionById(input.id);
-      if (!session) return null;
-      return {
-        ...session,
-        participants: JSON.parse(session.participants),
-        keyPoints: JSON.parse(session.keyPoints),
-        activeBlockers: JSON.parse(session.activeBlockers),
-        decisionsMade: JSON.parse(session.decisionsMade),
-        actionItems: JSON.parse(session.actionItems),
-        openQuestions: JSON.parse(session.openQuestions),
-        systemMaturityNotes: JSON.parse(session.systemMaturityNotes),
-      };
+  // Quick stats for dashboard
+  getStats: protectedProcedure.query(async () => {
+    const [allSessions, openBlockers, openActions, chronicBlockers] = await Promise.all([
+      db.getAllSessions(),
+      db.getBlockersByStatus("open"),
+      db.getActionItemsByStatus("open"),
+      db.getChronicBlockers(),
+    ]);
+
+    const overdueActions = openActions.filter(
+      (a) => a.deadline && new Date(a.deadline) < new Date()
+    );
+
+    const highPriorityActions = openActions.filter((a) => a.priority === "HIGH");
+
+    return {
+      totalSessions: allSessions.length,
+      openBlockers: openBlockers.length,
+      chronicBlockers: chronicBlockers.length,
+      openActionItems: openActions.length,
+      overdueActionItems: overdueActions.length,
+      highPriorityItems: highPriorityActions.length,
+      lastSessionDate: allSessions.length > 0 ? allSessions[allSessions.length - 1].date : null,
+    };
+  }),
+});
+
+// ─── Employees ──────────────────────────────────────────────────────────────
+const employeesRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getAllEmployees();
+  }),
+  getById: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getEmployeeById(input.id);
     }),
-
-    getByNumber: publicProcedure
-      .input(z.object({ sessionNumber: z.number() }))
-      .query(async ({ input }) => {
-        const session = await db.getSessionByNumber(input.sessionNumber);
-        if (!session) return null;
-        return {
-          ...session,
-          participants: JSON.parse(session.participants),
-          keyPoints: JSON.parse(session.keyPoints),
-          activeBlockers: JSON.parse(session.activeBlockers),
-          decisionsMade: JSON.parse(session.decisionsMade),
-          actionItems: JSON.parse(session.actionItems),
-          openQuestions: JSON.parse(session.openQuestions),
-          systemMaturityNotes: JSON.parse(session.systemMaturityNotes),
-        };
-      }),
-  }),
-
-  // ============================================================================
-  // ACTION ITEMS
-  // ============================================================================
-  actionItems: router({
-    list: publicProcedure.query(async () => {
-      return await db.getAllActionItems();
+  upsert: protectedProcedure
+    .input(z.object({
+      id: z.number().optional(),
+      name: z.string(),
+      role: z.string(),
+      department: z.string().optional(),
+      status: z.enum(["active", "inactive", "at_risk"]).optional(),
+      criticalityScore: z.number().min(1).max(10).optional(),
+      replacementReadiness: z.number().min(0).max(100).optional(),
+      processesOwned: z.array(z.string()).optional(),
+      backupPerson: z.string().optional(),
+      skills: z.array(z.string()).optional(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await db.upsertEmployee({
+        ...input,
+        processesOwned: input.processesOwned ? JSON.stringify(input.processesOwned) : undefined,
+        skills: input.skills ? JSON.stringify(input.skills) : undefined,
+      });
+      return { success: true };
     }),
+});
 
-    listByStatus: publicProcedure
-      .input(z.object({ status: z.enum(["open", "complete"]) }))
-      .query(async ({ input }) => {
-        return await db.getActionItemsByStatus(input.status);
-      }),
-
-    updateStatus: protectedProcedure
-      .input(
-        z.object({
-          id: z.number(),
-          status: z.enum(["open", "complete"]),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await db.updateActionItemStatus(input.id, input.status);
-        return { success: true };
-      }),
+// ─── Clients ──────────────────────────────────────────────────────────────────
+const clientsRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getAllClients();
   }),
-
-  // ============================================================================
-  // BLOCKERS
-  // ============================================================================
-  blockers: router({
-    list: publicProcedure.query(async () => {
-      return await db.getAllBlockers();
+  getById: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getClientById(input.id);
     }),
-
-    listByStatus: publicProcedure
-      .input(z.object({ status: z.enum(["open", "resolved"]) }))
-      .query(async ({ input }) => {
-        return await db.getBlockersByStatus(input.status);
-      }),
-
-    listChronic: publicProcedure.query(async () => {
-      return await db.getChronicBlockers();
+  upsert: protectedProcedure
+    .input(z.object({
+      id: z.number().optional(),
+      name: z.string(),
+      status: z.enum(["active", "at_risk", "churned", "prospect"]).optional(),
+      healthScore: z.number().min(0).max(100).optional(),
+      monthlyRevenue: z.string().optional(),
+      teamSize: z.number().optional(),
+      notes: z.string().optional(),
+      riskFlags: z.array(z.string()).optional(),
+      assignedTeam: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await db.upsertClient({
+        ...input,
+        riskFlags: input.riskFlags ? JSON.stringify(input.riskFlags) : undefined,
+        assignedTeam: input.assignedTeam ? JSON.stringify(input.assignedTeam) : undefined,
+      });
+      return { success: true };
     }),
+});
 
-    resolve: protectedProcedure
-      .input(
-        z.object({
-          id: z.number(),
-          resolutionNote: z.string(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await db.resolveBlocker(input.id, input.resolutionNote);
-        return { success: true };
-      }),
+// ─── Processes ────────────────────────────────────────────────────────────────
+const processesRouter = router({
+  getAll: protectedProcedure.query(async () => {
+    return await db.getAllProcesses();
   }),
+  getById: protectedProcedure
+    .input(z.object({ id: z.number() }))
+    .query(async ({ input }) => {
+      return await db.getProcessById(input.id);
+    }),
+  upsert: protectedProcedure
+    .input(z.object({
+      id: z.number().optional(),
+      name: z.string(),
+      category: z.string(),
+      owner: z.string().optional(),
+      backupOwner: z.string().optional(),
+      documentationPct: z.number().min(0).max(100).optional(),
+      status: z.enum(["documented", "partial", "undocumented", "needs_update"]).optional(),
+      automationOpportunity: z.enum(["high", "medium", "low", "none"]).optional(),
+      description: z.string().optional(),
+      steps: z.array(z.string()).optional(),
+      domainTag: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await db.upsertProcess({
+        ...input,
+        steps: input.steps ? JSON.stringify(input.steps) : undefined,
+      });
+      return { success: true };
+    }),
+});
 
-  // ============================================================================
-  // LLM PROCESSING
-  // ============================================================================
-  llm: router({
-    processMeeting: protectedProcedure
-      .input(
-        z.object({
-          meetingInput: z.string(),
-          meetingType: z.string(),
-          participants: z.string(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        try {
-          const result = await processMeeting(input);
-          return {
-            success: true,
-            data: result,
-          };
-        } catch (error) {
-          console.error("LLM processing error:", error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to process meeting with LLM",
-          });
-        }
-      }),
-  }),
-
-  // ============================================================================
-  // SETTINGS
-  // ============================================================================
-  settings: router({
-    get: protectedProcedure
-      .input(z.object({ key: z.string() }))
-      .query(async ({ input }) => {
-        return await db.getSetting(input.key);
-      }),
-
-    set: protectedProcedure
-      .input(
-        z.object({
-          key: z.string(),
-          value: z.string(),
-        })
-      )
-      .mutation(async ({ input }) => {
-        await db.setSetting(input.key, input.value);
-        return { success: true };
-      }),
-  }),
+// ─── App Router ───────────────────────────────────────────────────────────────
+export const appRouter = router({
+  auth: authRouter,
+  system: systemRouter,
+  sessions: sessionsRouter,
+  actionItems: actionItemsRouter,
+  blockers: blockersRouter,
+  domains: domainsRouter,
+  timeline: timelineRouter,
+  reports: reportsRouter,
+  brain: brainRouter,
+  employees: employeesRouter,
+  clients: clientsRouter,
+  processes: processesRouter,
 });
 
 export type AppRouter = typeof appRouter;

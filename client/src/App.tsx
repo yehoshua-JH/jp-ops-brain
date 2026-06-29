@@ -13,6 +13,10 @@ import ActionItemsBlockers from "./pages/ActionItemsBlockers";
 import Reports from "./pages/Reports";
 import MasterTimeline from "./pages/MasterTimeline";
 import OpsBrain from "./pages/OpsBrain";
+import VoiceAssistant from "./pages/VoiceAssistant";
+import EmployeeIntelligence from "./pages/EmployeeIntelligence";
+import ClientsPage from "./pages/ClientsPage";
+import ProcessLibrary from "./pages/ProcessLibrary";
 import { useAuth } from "./_core/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
@@ -42,6 +46,10 @@ function Router() {
         <Route path={"/reports"} component={Reports} />
         <Route path={"/timeline"} component={MasterTimeline} />
         <Route path={"/brain"} component={OpsBrain} />
+        <Route path={"/voice"} component={VoiceAssistant} />
+        <Route path={"/employees"} component={EmployeeIntelligence} />
+        <Route path={"/clients"} component={ClientsPage} />
+        <Route path={"/processes"} component={ProcessLibrary} />
         <Route path={"/404"} component={NotFound} />
         {/* Final fallback route */}
         <Route component={NotFound} />

@@ -1,238 +1,367 @@
-import { useEffect, useState } from "react";
-import { Card } from "@/components/ui/card";
+import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/_core/hooks/useAuth";
-import { getLoginUrl } from "@/const";
-import { trpc } from "@/lib/trpc";
-import { Loader2, LogOut, ArrowRight } from "lucide-react";
-import { useLocation } from "wouter";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Brain,
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  TrendingUp,
+  TrendingDown,
+  Users,
+  Building2,
+  Zap,
+  ArrowRight,
+  Mic,
+  Activity,
+} from "lucide-react";
 
-const DOMAIN_COLORS: Record<string, string> = {
-  "TIME-TRACKING": "bg-teal-100 text-teal-800 hover:bg-teal-200",
-  INVOICING: "bg-blue-100 text-blue-800 hover:bg-blue-200",
-  "TALENT-OPS": "bg-purple-100 text-purple-800 hover:bg-purple-200",
-  "TECH-PLATFORM": "bg-gray-100 text-gray-800 hover:bg-gray-200",
-  "CLIENT-OPS": "bg-amber-100 text-amber-800 hover:bg-amber-200",
-  "CLIENT-PORTAL": "bg-green-100 text-green-800 hover:bg-green-200",
-  FINANCE: "bg-orange-100 text-orange-800 hover:bg-orange-200",
-  "TEAM-MGMT": "bg-pink-100 text-pink-800 hover:bg-pink-200",
-  "SALES-BD": "bg-indigo-100 text-indigo-800 hover:bg-indigo-200",
-  "AI-SYSTEMS": "bg-cyan-100 text-cyan-800 hover:bg-cyan-200",
-};
+function HealthBar({ score }: { score: number }) {
+  const color =
+    score >= 70 ? "bg-emerald-500" : score >= 40 ? "bg-yellow-500" : "bg-red-500";
+  return (
+    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+      <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
+    </div>
+  );
+}
 
-const MATURITY_LEVELS = ["Not started", "Early", "Developing", "Functional with gaps", "Solid", "World-class"];
+function StatCard({
+  label,
+  value,
+  sub,
+  color = "text-white",
+  icon: Icon,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  color?: string;
+  icon: React.ElementType;
+}) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-white/40 uppercase tracking-wider">{label}</span>
+        <Icon className="w-4 h-4 text-white/20" />
+      </div>
+      <span className={`text-2xl font-bold ${color}`}>{value}</span>
+      {sub && <span className="text-xs text-white/40">{sub}</span>}
+    </div>
+  );
+}
 
 export default function Home() {
-  const { user, isAuthenticated, logout } = useAuth();
   const [, navigate] = useLocation();
-  const [isInitializing, setIsInitializing] = useState(false);
+  const { data: domains, isLoading: domainsLoading } = trpc.domains.getAll.useQuery();
+  const { data: sessions, isLoading: sessionsLoading } = trpc.sessions.getAll.useQuery();
+  const { data: openBlockers } = trpc.blockers.getOpen.useQuery();
+  const { data: openActions } = trpc.actionItems.getOpen.useQuery();
+  const { data: employees } = trpc.employees.getAll.useQuery();
+  const { data: clients } = trpc.clients.getAll.useQuery();
 
-  // Initialize domains on first load
-  const seedDomains = trpc.domains.seedDomains.useMutation();
-  const listDomains = trpc.domains.list.useQuery();
-  const listSessions = trpc.sessions.list.useQuery();
-  const listActionItems = trpc.actionItems.list.useQuery();
+  const recentSessions = (sessions ?? []).slice(-5).reverse();
+  const criticalBlockers = (openBlockers ?? []).filter((b) => b.timesAppeared >= 3);
+  const overdueActions = (openActions ?? []).filter(
+    (a) => a.deadline && new Date(a.deadline) < new Date()
+  );
+  const atRiskClients = (clients ?? []).filter((c) => c.status === "at_risk");
+  const criticalEmployees = (employees ?? []).filter((e) => e.criticalityScore >= 8);
 
-  useEffect(() => {
-    if (isAuthenticated && listDomains.data?.length === 0) {
-      setIsInitializing(true);
-      seedDomains.mutate(undefined, {
-        onSuccess: () => {
-          listDomains.refetch();
-          setIsInitializing(false);
-        },
-        onError: () => {
-          setIsInitializing(false);
-        },
-      });
-    }
-  }, [isAuthenticated, listDomains.data]);
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-900 to-slate-800 text-white">
-        <div className="text-center space-y-6 max-w-md">
-          <h1 className="text-4xl font-bold">Ops Brain</h1>
-          <p className="text-lg text-slate-300">
-            Your personal operations intelligence hub. Transform meeting transcripts into structured operational insights.
-          </p>
-          <Button
-            size="lg"
-            onClick={() => (window.location.href = getLoginUrl())}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            Sign In with Manus
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  if (isInitializing) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center space-y-4">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto" />
-          <p className="text-muted-foreground">Initializing your Ops Brain...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const openActionItems = listActionItems.data?.filter((item) => item.status === "open") || [];
-  const highPriorityItems = openActionItems.filter((item) => item.priority === "HIGH");
-  const overdueItems = openActionItems.filter((item) => item.deadline && new Date(item.deadline) < new Date());
-
-  // Get the latest maturity level for each domain from sessions
-  const getDomainMaturity = (domainTag: string): string => {
-    if (!listSessions.data || listSessions.data.length === 0) return "Not started";
-    
-    // Find the most recent session with maturity info for this domain
-    for (const session of listSessions.data) {
-      const maturityNote = session.systemMaturityNotes?.find(
-        (note: any) => note.domain === domainTag
-      );
-      if (maturityNote) {
-        return maturityNote.maturity || "Not started";
-      }
-    }
-    return "Not started";
-  };
+  const avgDomainHealth =
+    domains && domains.length > 0
+      ? Math.round(domains.reduce((sum, d) => sum + (d.currentMaturityScore ?? 0), 0) / domains.length)
+      : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="min-h-screen bg-[#0a0a14] text-white p-6">
       {/* Header */}
-      <div className="flex justify-between items-start">
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-4xl font-bold">Welcome back, {user?.name || "Reef"}</h1>
-          <p className="text-muted-foreground mt-2">
-            Your operations intelligence dashboard. All systems ready.
+          <div className="flex items-center gap-2 mb-1">
+            <Brain className="w-5 h-5 text-indigo-400" />
+            <h1 className="text-xl font-bold text-white">Command Center</h1>
+          </div>
+          <p className="text-sm text-white/40">
+            JivePilot Ops Brain · {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => logout()}>
-          <LogOut className="w-4 h-4 mr-2" />
-          Sign Out
+        <Button
+          onClick={() => navigate("/voice")}
+          className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+        >
+          <Mic className="w-4 h-4" />
+          Ask the Brain
         </Button>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground">Total Sessions</div>
-          <div className="text-3xl font-bold mt-2">{listSessions.data?.length || 0}</div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground">Open Action Items</div>
-          <div className="text-3xl font-bold mt-2">{openActionItems.length}</div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground">HIGH Priority</div>
-          <div className="text-3xl font-bold mt-2 text-red-600">{highPriorityItems.length}</div>
-        </Card>
-        <Card className="p-6">
-          <div className="text-sm text-muted-foreground">Overdue</div>
-          <div className="text-3xl font-bold mt-2 text-orange-600">{overdueItems.length}</div>
-        </Card>
+      {/* Top stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <StatCard
+          label="Domain Health"
+          value={`${avgDomainHealth}%`}
+          sub={`${domains?.length ?? 0} domains tracked`}
+          color={avgDomainHealth >= 70 ? "text-emerald-400" : avgDomainHealth >= 40 ? "text-yellow-400" : "text-red-400"}
+          icon={Activity}
+        />
+        <StatCard
+          label="Open Blockers"
+          value={openBlockers?.length ?? 0}
+          sub={`${criticalBlockers.length} chronic (3+ sessions)`}
+          color={criticalBlockers.length > 0 ? "text-red-400" : "text-white"}
+          icon={AlertTriangle}
+        />
+        <StatCard
+          label="Action Items"
+          value={openActions?.length ?? 0}
+          sub={`${overdueActions.length} overdue`}
+          color={overdueActions.length > 0 ? "text-yellow-400" : "text-white"}
+          icon={CheckCircle2}
+        />
+        <StatCard
+          label="Sessions"
+          value={sessions?.length ?? 0}
+          sub={`Last: ${recentSessions[0] ? new Date(recentSessions[0].date).toLocaleDateString() : "—"}`}
+          icon={Clock}
+        />
       </div>
 
-      {/* Alerts */}
-      {(highPriorityItems.length > 0 || overdueItems.length > 0) && (
-        <div className="space-y-3">
-          {highPriorityItems.length > 0 && (
-            <Card className="p-4 border-red-200 bg-red-50">
-              <div className="text-sm font-semibold text-red-900">
-                ⚠️ {highPriorityItems.length} HIGH priority item{highPriorityItems.length !== 1 ? "s" : ""} need attention
-              </div>
-            </Card>
-          )}
-          {overdueItems.length > 0 && (
-            <Card className="p-4 border-orange-200 bg-orange-50">
-              <div className="text-sm font-semibold text-orange-900">
-                ⏰ {overdueItems.length} overdue item{overdueItems.length !== 1 ? "s" : ""}
-              </div>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Domain Maturity Summary */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Domain Maturity</h2>
-        <Card className="p-6">
-          <div className="flex flex-wrap gap-3">
-            {listDomains.data?.map((domain) => {
-              const maturity = getDomainMaturity(domain.tag);
-              return (
-                <button
-                  key={domain.tag}
-                  onClick={() => navigate(`/domains?domain=${domain.tag}`)}
-                  className={`px-4 py-2 rounded-full font-medium transition-colors cursor-pointer ${DOMAIN_COLORS[domain.tag] || "bg-gray-100"}`}
-                  title={`${domain.name}: ${maturity}`}
-                >
-                  <div className="text-sm font-semibold">{domain.tag}</div>
-                  <div className="text-xs opacity-75">{maturity}</div>
-                </button>
-              );
-            })}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Domain Health */}
+        <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-sm font-semibold text-white/80">Domain Health</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs text-white/40 hover:text-white gap-1 h-7"
+              onClick={() => navigate("/domains")}
+            >
+              View all <ArrowRight className="w-3 h-3" />
+            </Button>
           </div>
-        </Card>
-      </div>
-
-      {/* Recent Sessions */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Recent Sessions</h2>
-        <Card className="p-6">
-          {listSessions.data && listSessions.data.length > 0 ? (
+          {domainsLoading ? (
             <div className="space-y-3">
-              {listSessions.data.slice(0, 5).map((session) => (
-                <div key={session.id} className="flex justify-between items-start pb-3 border-b last:border-b-0">
-                  <div>
-                    <div className="font-semibold">Session #{session.sessionNumber}</div>
-                    <div className="text-sm text-muted-foreground">
-                      {new Date(session.date).toLocaleDateString()} • {session.meetingType}
-                    </div>
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 bg-white/5" />)}
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(domains ?? []).map((d) => (
+                <div key={d.id} className="flex items-center gap-3">
+                  <span className="text-xs text-white/60 w-36 truncate">{d.name}</span>
+                  <div className="flex-1">
+                    <HealthBar score={d.currentMaturityScore ?? 0} />
                   </div>
-                  <Badge variant="outline">{session.inputFormat}</Badge>
+                  <span
+                    className={`text-xs font-mono w-8 text-right ${
+                      (d.currentMaturityScore ?? 0) >= 70
+                        ? "text-emerald-400"
+                        : (d.currentMaturityScore ?? 0) >= 40
+                        ? "text-yellow-400"
+                        : "text-red-400"
+                    }`}
+                  >
+                    {d.currentMaturityScore ?? 0}
+                  </span>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs border-0 w-20 justify-center ${
+                      d.trend === "improving"
+                        ? "bg-emerald-500/10 text-emerald-400"
+                        : d.trend === "declining"
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-white/5 text-white/30"
+                    }`}
+                  >
+                    {d.trend === "improving" ? (
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                    ) : d.trend === "declining" ? (
+                      <TrendingDown className="w-3 h-3 mr-1" />
+                    ) : null}
+                    {d.trend ?? "stable"}
+                  </Badge>
                 </div>
               ))}
             </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground">
-              No sessions yet. Start by processing your first meeting.
-            </div>
           )}
-        </Card>
+        </div>
+
+        {/* Right column */}
+        <div className="space-y-4">
+          {/* Critical Blockers */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" />
+                Critical Blockers
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-white/40 hover:text-white gap-1 h-7"
+                onClick={() => navigate("/issues")}
+              >
+                All <ArrowRight className="w-3 h-3" />
+              </Button>
+            </div>
+            {criticalBlockers.length === 0 ? (
+              <p className="text-xs text-white/30 text-center py-3">No chronic blockers</p>
+            ) : (
+              <div className="space-y-2">
+                {criticalBlockers.slice(0, 4).map((b) => (
+                  <div key={b.id} className="flex items-start gap-2">
+                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-xs text-white/70 leading-snug">{b.description}</p>
+                      <p className="text-xs text-white/30">{b.domainTag} · {b.timesAppeared}x</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* At-Risk Clients */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <Building2 className="w-4 h-4 text-yellow-400" />
+                At-Risk Clients
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-white/40 hover:text-white gap-1 h-7"
+                onClick={() => navigate("/clients")}
+              >
+                All <ArrowRight className="w-3 h-3" />
+              </Button>
+            </div>
+            {atRiskClients.length === 0 ? (
+              <p className="text-xs text-white/30 text-center py-3">No at-risk clients</p>
+            ) : (
+              <div className="space-y-2">
+                {atRiskClients.map((c) => (
+                  <div key={c.id} className="flex items-center justify-between">
+                    <span className="text-xs text-white/70">{c.name}</span>
+                    <Badge variant="outline" className="text-xs border-0 bg-yellow-500/10 text-yellow-400">
+                      {c.healthScore}% health
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Critical Employees */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+                <Users className="w-4 h-4 text-orange-400" />
+                Key People Risk
+              </h2>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-white/40 hover:text-white gap-1 h-7"
+                onClick={() => navigate("/employees")}
+              >
+                All <ArrowRight className="w-3 h-3" />
+              </Button>
+            </div>
+            {criticalEmployees.length === 0 ? (
+              <p className="text-xs text-white/30 text-center py-3">No critical risks</p>
+            ) : (
+              <div className="space-y-2">
+                {criticalEmployees.slice(0, 4).map((e) => (
+                  <div key={e.id} className="flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-white/70">{e.name}</p>
+                      <p className="text-xs text-white/30">{e.role}</p>
+                    </div>
+                    <div className="text-right">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs border-0 ${
+                          e.criticalityScore >= 9
+                            ? "bg-red-500/10 text-red-400"
+                            : "bg-orange-500/10 text-orange-400"
+                        }`}
+                      >
+                        {e.criticalityScore}/10 critical
+                      </Badge>
+                      {!e.backupPerson && (
+                        <p className="text-xs text-red-400 mt-0.5">No backup</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-2xl font-bold mb-4">Quick Actions</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Recent Sessions */}
+      <div className="mt-6 bg-white/5 border border-white/10 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-white/80">Recent Sessions</h2>
           <Button
-            className="h-12 justify-between"
-            onClick={() => navigate("/process")}
+            variant="ghost"
+            size="sm"
+            className="text-xs text-white/40 hover:text-white gap-1 h-7"
+            onClick={() => navigate("/sessions")}
           >
-            Process Meeting
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-          <Button
-            className="h-12 justify-between"
-            variant="outline"
-            onClick={() => navigate("/library")}
-          >
-            View All Sessions
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-          <Button
-            className="h-12 justify-between"
-            variant="outline"
-            onClick={() => navigate("/brain")}
-          >
-            Ask Ops Brain
-            <ArrowRight className="w-4 h-4" />
+            All sessions <ArrowRight className="w-3 h-3" />
           </Button>
         </div>
+        {sessionsLoading ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 bg-white/5" />)}
+          </div>
+        ) : recentSessions.length === 0 ? (
+          <p className="text-xs text-white/30 text-center py-4">No sessions yet</p>
+        ) : (
+          <div className="space-y-2">
+            {recentSessions.map((s) => (
+              <div
+                key={s.id}
+                className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                onClick={() => navigate(`/sessions/${s.sessionNumber}`)}
+              >
+                <span className="text-xs text-indigo-400 font-mono w-12">#{s.sessionNumber}</span>
+                <span className="text-xs text-white/40 w-24">
+                  {new Date(s.date).toLocaleDateString()}
+                </span>
+                <span className="text-xs text-white/60 flex-1 truncate">{s.executiveSummary}</span>
+                <Badge variant="outline" className="text-xs border-0 bg-white/5 text-white/30">
+                  {s.meetingType}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick actions */}
+      <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {[
+          { label: "Voice Assistant", icon: Mic, path: "/voice", color: "text-indigo-400" },
+          { label: "Session Library", icon: Clock, path: "/sessions", color: "text-blue-400" },
+          { label: "Issues Board", icon: AlertTriangle, path: "/issues", color: "text-red-400" },
+          { label: "Process Library", icon: Zap, path: "/processes", color: "text-yellow-400" },
+        ].map((item) => (
+          <button
+            key={item.path}
+            onClick={() => navigate(item.path)}
+            className="flex items-center gap-3 bg-white/5 hover:bg-white/8 border border-white/10 rounded-xl px-4 py-3 transition-colors text-left"
+          >
+            <item.icon className={`w-4 h-4 ${item.color}`} />
+            <span className="text-sm text-white/70">{item.label}</span>
+          </button>
+        ))}
       </div>
     </div>
   );

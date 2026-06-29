@@ -22,8 +22,8 @@ export default function DomainTracker() {
   const selectedDomain = params.get("domain");
   const [activeDomain, setActiveDomain] = useState(selectedDomain || null);
 
-  const listDomains = trpc.domains.list.useQuery();
-  const listSessions = trpc.sessions.list.useQuery();
+  const listDomains = trpc.domains.getAll.useQuery();
+  const listSessions = trpc.sessions.getAll.useQuery();
 
   if (listDomains.isLoading || listSessions.isLoading) {
     return (
@@ -41,41 +41,45 @@ export default function DomainTracker() {
     return <div className="text-center py-12 text-muted-foreground">No domains found</div>;
   }
 
+  function tryParse(str: string | null | undefined): any[] {
+    try { return JSON.parse(str ?? "[]") ?? []; } catch { return []; }
+  }
+
   // Get all maturity history for this domain across sessions
-  const maturityHistory = listSessions.data
-    ?.flatMap((session) =>
-      session.systemMaturityNotes
-        ?.filter((note: any) => note.domain === domain.tag)
+  const maturityHistory = (listSessions.data ?? [])
+    .flatMap((session) =>
+      tryParse(session.systemMaturityNotes)
+        .filter((note: any) => note.domain === domain.tag)
         .map((note: any) => ({
           sessionNumber: session.sessionNumber,
           date: session.date,
           maturity: note.maturity,
           change: note.change,
-        })) || []
+        }))
     )
-    .sort((a, b) => a.sessionNumber - b.sessionNumber) || [];
+    .sort((a, b) => a.sessionNumber - b.sessionNumber);
 
   // Get all key points for this domain
-  const keyPoints = listSessions.data
-    ?.flatMap((session) =>
-      session.keyPoints
-        ?.filter((point: any) => point.domain === domain.tag)
+  const keyPoints = (listSessions.data ?? [])
+    .flatMap((session) =>
+      tryParse(session.keyPoints)
+        .filter((point: any) => point.domain === domain.tag)
         .map((point: any) => ({
           sessionNumber: session.sessionNumber,
           point: point.point,
-        })) || []
-    ) || [];
+        }))
+    );
 
   // Get all blockers for this domain
-  const blockers = listSessions.data
-    ?.flatMap((session) =>
-      session.activeBlockers
-        ?.filter((blocker: string) => blocker.toLowerCase().includes(domain.tag.toLowerCase()))
+  const blockers = (listSessions.data ?? [])
+    .flatMap((session) =>
+      tryParse(session.activeBlockers)
+        .filter((blocker: string) => blocker.toLowerCase().includes(domain.tag.toLowerCase()))
         .map((blocker: string) => ({
           sessionNumber: session.sessionNumber,
           blocker,
-        })) || []
-    ) || [];
+        }))
+    );
 
   return (
     <div className="space-y-6">

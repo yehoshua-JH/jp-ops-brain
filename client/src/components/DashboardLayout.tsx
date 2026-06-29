@@ -21,15 +21,25 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Brain, Mic, BookOpen, AlertTriangle, Target, UserCheck, Workflow, BarChart3, Clock, Inbox } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
 
 const menuItems = [
-  { icon: LayoutDashboard, label: "Page 1", path: "/" },
-  { icon: Users, label: "Page 2", path: "/some-path" },
+  { icon: LayoutDashboard, label: "Command Center", path: "/" },
+  { icon: Mic, label: "Voice Assistant", path: "/voice" },
+  { icon: Inbox, label: "Process Meeting", path: "/process" },
+  { icon: BookOpen, label: "Session Library", path: "/library" },
+  { icon: AlertTriangle, label: "Issues & Blockers", path: "/tasks" },
+  { icon: Target, label: "Domain Health", path: "/domains" },
+  { icon: UserCheck, label: "Employee Intel", path: "/employees" },
+  { icon: Users, label: "Clients", path: "/clients" },
+  { icon: Workflow, label: "Process Library", path: "/processes" },
+  { icon: Clock, label: "Timeline", path: "/timeline" },
+  { icon: BarChart3, label: "Reports", path: "/reports" },
+  { icon: Brain, label: "Ask the Brain", path: "/brain" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
