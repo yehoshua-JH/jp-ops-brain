@@ -21,8 +21,9 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, Brain, Mic, BookOpen, AlertTriangle, Target, UserCheck, Workflow, BarChart3, Clock, Inbox } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, Brain, Mic, BookOpen, AlertTriangle, Target, UserCheck, Workflow, BarChart3, Clock, Inbox, Sun, Moon } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
 import { Button } from "./ui/button";
@@ -46,6 +47,20 @@ const SIDEBAR_WIDTH_KEY = "sidebar-width";
 const DEFAULT_WIDTH = 280;
 const MIN_WIDTH = 200;
 const MAX_WIDTH = 480;
+
+function ThemeToggleItem() {
+  const { theme, toggleTheme, switchable } = useTheme();
+  if (!switchable || !toggleTheme) return null;
+  return (
+    <DropdownMenuItem onClick={toggleTheme} className="cursor-pointer">
+      {theme === "dark" ? (
+        <><Sun className="mr-2 h-4 w-4" /><span>Light mode</span></>
+      ) : (
+        <><Moon className="mr-2 h-4 w-4" /><span>Dark mode</span></>
+      )}
+    </DropdownMenuItem>
+  );
+}
 
 export default function DashboardLayout({
   children,
@@ -214,6 +229,7 @@ function DashboardLayoutContent({
           <SidebarFooter className="p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
+
                 <button className="flex items-center gap-3 rounded-lg px-1 py-1 hover:bg-accent/50 transition-colors w-full text-left group-data-[collapsible=icon]:justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-ring">
                   <Avatar className="h-9 w-9 border shrink-0">
                     <AvatarFallback className="text-xs font-medium">
@@ -230,7 +246,8 @@ function DashboardLayoutContent({
                   </div>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-48">
+                <ThemeToggleItem />
                 <DropdownMenuItem
                   onClick={logout}
                   className="cursor-pointer text-destructive focus:text-destructive"

@@ -22,7 +22,7 @@ function HealthBar({ score }: { score: number }) {
   const color =
     score >= 70 ? "bg-emerald-500" : score >= 40 ? "bg-yellow-500" : "bg-red-500";
   return (
-    <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+    <div className="h-1.5 w-full bg-card/10 rounded-full overflow-hidden">
       <div className={`h-full rounded-full ${color}`} style={{ width: `${score}%` }} />
     </div>
   );
@@ -42,7 +42,7 @@ function StatCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
+    <div className="bg-card/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="text-xs text-white/40 uppercase tracking-wider">{label}</span>
         <Icon className="w-4 h-4 text-white/20" />
@@ -130,7 +130,7 @@ export default function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Domain Health */}
-        <div className="lg:col-span-2 bg-white/5 border border-white/10 rounded-xl p-5">
+        <div className="lg:col-span-2 bg-card/5 border border-white/10 rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-sm font-semibold text-white/80">Domain Health</h2>
             <Button
@@ -144,7 +144,7 @@ export default function Home() {
           </div>
           {domainsLoading ? (
             <div className="space-y-3">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 bg-white/5" />)}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 bg-card/5" />)}
             </div>
           ) : (
             <div className="space-y-3">
@@ -172,7 +172,7 @@ export default function Home() {
                         ? "bg-emerald-500/10 text-emerald-400"
                         : d.trend === "declining"
                         ? "bg-red-500/10 text-red-400"
-                        : "bg-white/5 text-white/30"
+                        : "bg-card/5 text-white/30"
                     }`}
                   >
                     {d.trend === "improving" ? (
@@ -191,7 +191,7 @@ export default function Home() {
         {/* Right column */}
         <div className="space-y-4">
           {/* Critical Blockers */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+          <div className="bg-card/5 border border-white/10 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-400" />
@@ -224,7 +224,7 @@ export default function Home() {
           </div>
 
           {/* At-Risk Clients */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+          <div className="bg-card/5 border border-white/10 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-yellow-400" />
@@ -256,7 +256,7 @@ export default function Home() {
           </div>
 
           {/* Critical Employees */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+          <div className="bg-card/5 border border-white/10 rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
                 <Users className="w-4 h-4 text-orange-400" />
@@ -305,7 +305,7 @@ export default function Home() {
       </div>
 
       {/* Recent Sessions */}
-      <div className="mt-6 bg-white/5 border border-white/10 rounded-xl p-5">
+      <div className="mt-6 bg-card/5 border border-white/10 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-sm font-semibold text-white/80">Recent Sessions</h2>
           <Button
@@ -319,7 +319,7 @@ export default function Home() {
         </div>
         {sessionsLoading ? (
           <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 bg-white/5" />)}
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 bg-card/5" />)}
           </div>
         ) : recentSessions.length === 0 ? (
           <p className="text-xs text-white/30 text-center py-4">No sessions yet</p>
@@ -328,7 +328,7 @@ export default function Home() {
             {recentSessions.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-white/5 cursor-pointer transition-colors"
+                className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-card/5 cursor-pointer transition-colors"
                 onClick={() => navigate(`/sessions/${s.sessionNumber}`)}
               >
                 <span className="text-xs text-indigo-400 font-mono w-12">#{s.sessionNumber}</span>
@@ -336,7 +336,7 @@ export default function Home() {
                   {new Date(s.date).toLocaleDateString()}
                 </span>
                 <span className="text-xs text-white/60 flex-1 truncate">{s.executiveSummary}</span>
-                <Badge variant="outline" className="text-xs border-0 bg-white/5 text-white/30">
+                <Badge variant="outline" className="text-xs border-0 bg-card/5 text-white/30">
                   {s.meetingType}
                 </Badge>
               </div>
@@ -356,7 +356,7 @@ export default function Home() {
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
-            className="flex items-center gap-3 bg-white/5 hover:bg-white/8 border border-white/10 rounded-xl px-4 py-3 transition-colors text-left"
+            className="flex items-center gap-3 bg-card/5 hover:bg-card/8 border border-white/10 rounded-xl px-4 py-3 transition-colors text-left"
           >
             <item.icon className={`w-4 h-4 ${item.color}`} />
             <span className="text-sm text-white/70">{item.label}</span>

@@ -12,19 +12,19 @@ function getHealthColor(score: number) {
 }
 
 function getHealthBg(score: number) {
-  if (score >= 70) return "bg-green-50 border-green-200";
+  if (score >= 70) return "bg-emerald-500/10 border-emerald-500/30";
   if (score >= 40) return "bg-yellow-50 border-yellow-200";
-  return "bg-red-50 border-red-200";
+  return "bg-destructive/10 border-destructive/30";
 }
 
 function getStatusBadge(status: string) {
   const map: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
-    at_risk: "bg-red-100 text-red-800",
-    churned: "bg-gray-100 text-gray-800",
-    prospect: "bg-blue-100 text-blue-800",
+    active: "bg-green-100 text-emerald-600",
+    at_risk: "bg-red-100 text-destructive",
+    churned: "bg-muted text-foreground",
+    prospect: "bg-blue-100 text-primary",
   };
-  return <Badge className={map[status] ?? "bg-gray-100 text-gray-800"}>{status.replace("_", " ")}</Badge>;
+  return <Badge className={map[status] ?? "bg-muted text-foreground"}>{status.replace("_", " ")}</Badge>;
 }
 
 function tryParse(str: string | null | undefined): string[] {
@@ -77,11 +77,11 @@ export default function ClientsPage() {
             </div>
           </div>
         </Card>
-        <Card className="p-4 border-red-200 bg-red-50">
+        <Card className="p-4 border-destructive/30 bg-destructive/10">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-8 h-8 text-red-600" />
             <div>
-              <div className="text-2xl font-bold text-red-700">{atRiskCount}</div>
+              <div className="text-2xl font-bold text-destructive">{atRiskCount}</div>
               <div className="text-sm text-red-600">At-risk clients</div>
             </div>
           </div>
@@ -193,12 +193,12 @@ export default function ClientsPage() {
               {/* Risk Flags */}
               {tryParse(selectedClient.riskFlags).length > 0 && (
                 <div>
-                  <h3 className="font-semibold mb-2 flex items-center gap-2 text-red-700">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2 text-destructive">
                     <AlertTriangle className="w-4 h-4" /> Risk Flags
                   </h3>
                   <div className="space-y-2">
                     {tryParse(selectedClient.riskFlags).map((flag: string, i: number) => (
-                      <div key={i} className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-800">
+                      <div key={i} className="bg-destructive/10 border border-destructive/30 rounded p-3 text-sm text-destructive">
                         {flag}
                       </div>
                     ))}

@@ -50,13 +50,13 @@ export default function SessionLibrary() {
           placeholder="Search sessions, decisions, participants..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="pl-9 bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:border-indigo-500"
+          className="pl-9 bg-card/5 border-white/10 text-white placeholder:text-white/30 focus:border-indigo-500"
         />
       </div>
 
       {isLoading ? (
         <div className="space-y-3">
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 bg-white/5 rounded-xl" />)}
+          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 bg-card/5 rounded-xl" />)}
         </div>
       ) : sorted.length === 0 ? (
         <div className="text-center py-12 text-white/30">
@@ -72,9 +72,9 @@ export default function SessionLibrary() {
             const keyPoints = parseJson(s.keyPoints);
             const participants = parseJson(s.participants);
             return (
-              <div key={s.id} className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+              <div key={s.id} className="bg-card/5 border border-white/10 rounded-xl overflow-hidden">
                 <button
-                  className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-white/5 transition-colors"
+                  className="w-full flex items-center gap-4 px-5 py-4 text-left hover:bg-card/5 transition-colors"
                   onClick={() => setExpandedId(isOpen ? null : s.id)}
                 >
                   <span className="text-indigo-400 font-mono text-sm w-10 flex-shrink-0">#{s.sessionNumber}</span>
@@ -83,7 +83,7 @@ export default function SessionLibrary() {
                   </div>
                   <p className="text-sm text-white/70 flex-1 truncate">{s.executiveSummary}</p>
                   <div className="flex items-center gap-2 flex-shrink-0">
-                    <Badge variant="outline" className="text-xs border-0 bg-white/5 text-white/30">{s.meetingType}</Badge>
+                    <Badge variant="outline" className="text-xs border-0 bg-card/5 text-white/30">{s.meetingType}</Badge>
                     {decisions.length > 0 && <Badge variant="outline" className="text-xs border-0 bg-indigo-500/10 text-indigo-400">{decisions.length} decisions</Badge>}
                     {blockers.length > 0 && <Badge variant="outline" className="text-xs border-0 bg-red-500/10 text-red-400">{blockers.length} blockers</Badge>}
                     {isOpen ? <ChevronUp className="w-4 h-4 text-white/30" /> : <ChevronDown className="w-4 h-4 text-white/30" />}

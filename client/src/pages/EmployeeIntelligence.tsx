@@ -8,10 +8,10 @@ import { Loader2, Search, AlertTriangle, Shield, User, TrendingUp, UserCheck } f
 import { toast } from "sonner";
 
 function getCriticalityColor(score: number) {
-  if (score >= 8) return "bg-red-100 text-red-800 border-red-200";
-  if (score >= 6) return "bg-orange-100 text-orange-800 border-orange-200";
+  if (score >= 8) return "bg-red-100 text-destructive border-destructive/30";
+  if (score >= 6) return "bg-orange-100 text-orange-600 border-orange-500/30";
   if (score >= 4) return "bg-yellow-100 text-yellow-800 border-yellow-200";
-  return "bg-green-100 text-green-800 border-green-200";
+  return "bg-green-100 text-emerald-600 border-emerald-500/30";
 }
 
 function getReadinessColor(score: number) {
@@ -21,9 +21,9 @@ function getReadinessColor(score: number) {
 }
 
 function getStatusBadge(status: string) {
-  if (status === "active") return <Badge className="bg-green-100 text-green-800">Active</Badge>;
-  if (status === "at_risk") return <Badge className="bg-red-100 text-red-800">At Risk</Badge>;
-  return <Badge className="bg-gray-100 text-gray-800">Inactive</Badge>;
+  if (status === "active") return <Badge className="bg-green-100 text-emerald-600">Active</Badge>;
+  if (status === "at_risk") return <Badge className="bg-red-100 text-destructive">At Risk</Badge>;
+  return <Badge className="bg-muted text-foreground">Inactive</Badge>;
 }
 
 export default function EmployeeIntelligence() {
@@ -71,20 +71,20 @@ export default function EmployeeIntelligence() {
 
       {/* Risk Summary */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 border-red-200 bg-red-50">
+        <Card className="p-4 border-destructive/30 bg-destructive/10">
           <div className="flex items-center gap-3">
             <AlertTriangle className="w-8 h-8 text-red-600" />
             <div>
-              <div className="text-2xl font-bold text-red-700">{criticalCount}</div>
+              <div className="text-2xl font-bold text-destructive">{criticalCount}</div>
               <div className="text-sm text-red-600">Critical employees (score 8+)</div>
             </div>
           </div>
         </Card>
-        <Card className="p-4 border-orange-200 bg-orange-50">
+        <Card className="p-4 border-orange-500/30 bg-orange-500/10">
           <div className="flex items-center gap-3">
             <User className="w-8 h-8 text-orange-600" />
             <div>
-              <div className="text-2xl font-bold text-orange-700">{noBackupCount}</div>
+              <div className="text-2xl font-bold text-orange-600">{noBackupCount}</div>
               <div className="text-sm text-orange-600">No backup person assigned</div>
             </div>
           </div>
@@ -204,12 +204,12 @@ export default function EmployeeIntelligence() {
                   <Shield className="w-4 h-4" /> Backup Coverage
                 </h3>
                 {selectedEmployee.backupPerson ? (
-                  <div className="bg-green-50 border border-green-200 rounded p-3 text-sm">
-                    <span className="text-green-700 font-medium">Backup: </span>
-                    <span className="text-green-800">{selectedEmployee.backupPerson}</span>
+                  <div className="bg-emerald-500/10 border border-emerald-500/30 rounded p-3 text-sm">
+                    <span className="text-emerald-600 font-medium">Backup: </span>
+                    <span className="text-emerald-600">{selectedEmployee.backupPerson}</span>
                   </div>
                 ) : (
-                  <div className="bg-red-50 border border-red-200 rounded p-3 text-sm text-red-700">
+                  <div className="bg-destructive/10 border border-destructive/30 rounded p-3 text-sm text-destructive">
                     ⚠️ No backup person assigned. This is a single point of failure.
                   </div>
                 )}
@@ -233,7 +233,7 @@ export default function EmployeeIntelligence() {
                   <h3 className="font-semibold mb-2">Skills</h3>
                   <div className="flex flex-wrap gap-2">
                     {tryParse(selectedEmployee.skills).map((s: string, i: number) => (
-                      <Badge key={i} className="bg-blue-100 text-blue-800">{s}</Badge>
+                      <Badge key={i} className="bg-blue-100 text-primary">{s}</Badge>
                     ))}
                   </div>
                 </div>

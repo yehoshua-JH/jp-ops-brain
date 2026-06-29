@@ -49,7 +49,7 @@ function AutomationPip({ level }: { level: string }) {
     high:   { color: "bg-blue-500", label: "High" },
     medium: { color: "bg-purple-400", label: "Med" },
     low:    { color: "bg-gray-300", label: "Low" },
-    none:   { color: "bg-gray-200", label: "None" },
+    none:   { color: "bg-muted", label: "None" },
   };
   const { color, label } = map[level] ?? map.none;
   return (
@@ -61,21 +61,21 @@ function AutomationPip({ level }: { level: string }) {
 }
 
 const STATUS_STYLES: Record<string, string> = {
-  documented:    "bg-emerald-100 text-emerald-800 border-emerald-200",
-  partial:       "bg-amber-100 text-amber-800 border-amber-200",
-  undocumented:  "bg-red-100 text-red-800 border-red-200",
-  needs_update:  "bg-orange-100 text-orange-800 border-orange-200",
+  documented:    "bg-emerald-500/15 text-emerald-500 border-emerald-500/30",
+  partial:       "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  undocumented:  "bg-destructive/15 text-destructive border-destructive/30",
+  needs_update:  "bg-orange-500/15 text-orange-500 border-orange-500/30",
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  "Sales & BD":          "bg-sky-50 border-sky-200",
-  "SOW & Contracts":     "bg-violet-50 border-violet-200",
-  "HR & Onboarding":     "bg-teal-50 border-teal-200",
-  "Finance & Invoicing": "bg-amber-50 border-amber-200",
-  "Time Tracking":       "bg-orange-50 border-orange-200",
-  "Client Management":   "bg-pink-50 border-pink-200",
-  "KPI & Performance":   "bg-indigo-50 border-indigo-200",
-  "Ops Brain":           "bg-purple-50 border-purple-200",
+  "Sales & BD":          "bg-sky-500/10 border-sky-500/30",
+  "SOW & Contracts":     "bg-violet-500/10 border-violet-500/30",
+  "HR & Onboarding":     "bg-teal-500/10 border-teal-500/30",
+  "Finance & Invoicing": "bg-amber-500/10 border-amber-500/30",
+  "Time Tracking":       "bg-orange-500/10 border-orange-500/30",
+  "Client Management":   "bg-pink-500/10 border-pink-500/30",
+  "KPI & Performance":   "bg-indigo-500/10 border-indigo-500/30",
+  "Ops Brain":           "bg-purple-500/10 border-purple-500/30",
 };
 
 export default function ProcessLibrary() {
@@ -155,11 +155,11 @@ export default function ProcessLibrary() {
               <div className="text-lg font-bold">{totalProcesses}</div>
               <div className="text-[10px] text-muted-foreground">Total</div>
             </div>
-            <div className="bg-red-50 rounded p-2">
+            <div className="bg-destructive/10 rounded p-2">
               <div className="text-lg font-bold text-red-600">{undocumented}</div>
               <div className="text-[10px] text-red-500">Gaps</div>
             </div>
-            <div className="bg-blue-50 rounded p-2">
+            <div className="bg-primary/10 rounded p-2">
               <div className="text-lg font-bold text-blue-600">{highAutomation}</div>
               <div className="text-[10px] text-blue-500">Automate</div>
             </div>
@@ -222,7 +222,7 @@ export default function ProcessLibrary() {
                       <DocBar pct={proc.documentationPct} />
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-white/20 text-white border-white/30" : (STATUS_STYLES[proc.status] ?? "bg-gray-100 text-gray-700")}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-card/20 text-white border-white/30" : (STATUS_STYLES[proc.status] ?? "bg-muted text-muted-foreground")}`}>
                         {proc.status.replace("_", " ")}
                       </span>
                       {proc.automationOpportunity === "high" && (
@@ -245,7 +245,7 @@ export default function ProcessLibrary() {
           <div className="max-w-3xl mx-auto p-6 space-y-6">
 
             {/* Title block */}
-            <div className={`rounded-xl border p-5 ${CATEGORY_COLORS[selected.category] ?? "bg-white border-border"}`}>
+            <div className={`rounded-xl border p-5 ${CATEGORY_COLORS[selected.category] ?? "bg-card border-border"}`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
@@ -265,7 +265,7 @@ export default function ProcessLibrary() {
 
               {/* Meta row */}
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="bg-white/70 rounded-lg p-3">
+                <div className="bg-card/70 rounded-lg p-3">
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Documentation</div>
                   <div className={`text-xl font-bold ${selected.documentationPct >= 80 ? "text-emerald-600" : selected.documentationPct >= 50 ? "text-amber-600" : "text-red-500"}`}>
                     {selected.documentationPct}%
@@ -277,21 +277,21 @@ export default function ProcessLibrary() {
                     />
                   </div>
                 </div>
-                <div className="bg-white/70 rounded-lg p-3">
+                <div className="bg-card/70 rounded-lg p-3">
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Automation</div>
-                  <div className={`text-xl font-bold capitalize ${selected.automationOpportunity === "high" ? "text-blue-600" : selected.automationOpportunity === "medium" ? "text-purple-600" : "text-gray-500"}`}>
+                  <div className={`text-xl font-bold capitalize ${selected.automationOpportunity === "high" ? "text-blue-600" : selected.automationOpportunity === "medium" ? "text-purple-600" : "text-muted-foreground"}`}>
                     {selected.automationOpportunity}
                   </div>
                   <div className="text-[10px] text-muted-foreground mt-1">opportunity</div>
                 </div>
-                <div className="bg-white/70 rounded-lg p-3">
+                <div className="bg-card/70 rounded-lg p-3">
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Owner</div>
                   <div className="flex items-center gap-1 mt-1">
                     <User className="w-3.5 h-3.5 text-muted-foreground" />
                     <span className="text-sm font-medium truncate">{selected.owner ?? "Unassigned"}</span>
                   </div>
                 </div>
-                <div className="bg-white/70 rounded-lg p-3">
+                <div className="bg-card/70 rounded-lg p-3">
                   <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Backup</div>
                   <div className="flex items-center gap-1 mt-1">
                     <Shield className="w-3.5 h-3.5 text-muted-foreground" />
@@ -303,7 +303,7 @@ export default function ProcessLibrary() {
 
             {/* Process Steps */}
             {regularSteps.length > 0 && (
-              <div className="bg-white rounded-xl border p-5 space-y-1">
+              <div className="bg-card rounded-xl border p-5 space-y-1">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <h3 className="font-semibold text-sm">Process Steps</h3>
@@ -360,10 +360,10 @@ export default function ProcessLibrary() {
 
             {/* Policies */}
             {policies.length > 0 && (
-              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+              <div className="bg-indigo-500/10 border border-indigo-500/30 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <BookOpen className="w-4 h-4 text-indigo-600" />
-                  <h3 className="font-semibold text-sm text-indigo-800">Policies</h3>
+                  <h3 className="font-semibold text-sm text-indigo-500">Policies</h3>
                 </div>
                 <div className="space-y-2">
                   {policies.map((p, i) => (
@@ -378,10 +378,10 @@ export default function ProcessLibrary() {
 
             {/* Examples */}
             {examples.length > 0 && (
-              <div className="bg-sky-50 border border-sky-200 rounded-xl p-5">
+              <div className="bg-sky-500/10 border border-sky-500/30 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <FileText className="w-4 h-4 text-sky-600" />
-                  <h3 className="font-semibold text-sm text-sky-800">Real Examples</h3>
+                  <h3 className="font-semibold text-sm text-sky-500">Real Examples</h3>
                 </div>
                 <div className="space-y-2">
                   {examples.map((e, i) => (
@@ -396,10 +396,10 @@ export default function ProcessLibrary() {
 
             {/* Future improvements */}
             {future.length > 0 && (
-              <div className="bg-purple-50 border border-purple-200 rounded-xl p-5">
+              <div className="bg-purple-500/10 border border-purple-500/30 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Zap className="w-4 h-4 text-purple-600" />
-                  <h3 className="font-semibold text-sm text-purple-800">Future / Automation</h3>
+                  <h3 className="font-semibold text-sm text-purple-500">Future / Automation</h3>
                 </div>
                 <div className="space-y-2">
                   {future.map((f, i) => (
@@ -414,10 +414,10 @@ export default function ProcessLibrary() {
 
             {/* Lessons Learned */}
             {lessons.length > 0 && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <Lightbulb className="w-4 h-4 text-amber-600" />
-                  <h3 className="font-semibold text-sm text-amber-800">Lessons Learned</h3>
+                  <h3 className="font-semibold text-sm text-amber-600">Lessons Learned</h3>
                 </div>
                 <div className="space-y-2">
                   {lessons.map((l, i) => (
@@ -432,15 +432,15 @@ export default function ProcessLibrary() {
 
             {/* Gaps */}
             {gaps.length > 0 && (
-              <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+              <div className="bg-destructive/10 border border-destructive/30 rounded-xl p-5">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertCircle className="w-4 h-4 text-red-500" />
-                  <h3 className="font-semibold text-sm text-red-700">Known Gaps</h3>
+                  <h3 className="font-semibold text-sm text-destructive">Known Gaps</h3>
                   <span className="text-xs text-red-500">({gaps.length} gaps identified)</span>
                 </div>
                 <div className="space-y-2">
                   {gaps.map((g, i) => (
-                    <div key={i} className="flex gap-2 text-sm text-red-800">
+                    <div key={i} className="flex gap-2 text-sm text-destructive">
                       <span className="shrink-0 text-red-400 mt-0.5">✕</span>
                       <span>{g.replace(/^GAP:\s*/i, "")}</span>
                     </div>

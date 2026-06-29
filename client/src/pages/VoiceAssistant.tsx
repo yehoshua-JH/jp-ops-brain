@@ -267,7 +267,7 @@ export default function VoiceAssistant() {
                 ? "bg-yellow-500/20 text-yellow-400"
                 : recordingState === "speaking"
                 ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-white/5 text-white/40"
+                : "bg-card/5 text-white/40"
             }`}
           >
             {recordingState === "recording"
@@ -308,7 +308,7 @@ export default function VoiceAssistant() {
               className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user"
                   ? "bg-indigo-600 text-white rounded-tr-sm"
-                  : "bg-white/8 text-white/90 border border-white/10 rounded-tl-sm"
+                  : "bg-card/8 text-white/90 border border-white/10 rounded-tl-sm"
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
@@ -328,7 +328,7 @@ export default function VoiceAssistant() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
               <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
             </div>
-            <div className="bg-white/8 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-white/60">
+            <div className="bg-card/8 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-white/60">
               {uploadProgress ?? "Searching operational data..."}
             </div>
           </div>
@@ -352,7 +352,7 @@ export default function VoiceAssistant() {
               <button
                 key={q}
                 onClick={() => sendTextToAI(q)}
-                className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-full px-3 py-1.5 text-white/50 hover:text-white/80 transition-colors"
+                className="text-xs bg-card/5 hover:bg-card/10 border border-white/10 rounded-full px-3 py-1.5 text-white/50 hover:text-white/80 transition-colors"
               >
                 {q}
               </button>

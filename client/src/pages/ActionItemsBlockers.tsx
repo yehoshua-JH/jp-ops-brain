@@ -135,14 +135,14 @@ export default function ActionItemsBlockers() {
           {(highPriorityItems.length > 0 || overdueItems.length > 0) && (
             <div className="space-y-2">
               {highPriorityItems.length > 0 && (
-                <Card className="p-4 border-red-200 bg-red-50">
+                <Card className="p-4 border-destructive/30 bg-destructive/10">
                   <div className="text-sm font-semibold text-red-900">
                     🔴 {highPriorityItems.length} HIGH priority item{highPriorityItems.length !== 1 ? "s" : ""}
                   </div>
                 </Card>
               )}
               {overdueItems.length > 0 && (
-                <Card className="p-4 border-orange-200 bg-orange-50">
+                <Card className="p-4 border-orange-500/30 bg-orange-500/10">
                   <div className="text-sm font-semibold text-orange-900">
                     ⏰ {overdueItems.length} overdue item{overdueItems.length !== 1 ? "s" : ""}
                   </div>
@@ -252,7 +252,7 @@ export default function ActionItemsBlockers() {
                     .map((item) => {
                       const isOverdue = item.deadline && new Date(item.deadline) < new Date();
                       return (
-                        <div key={item.id} className={`p-4 border rounded-lg ${isOverdue ? "bg-red-50 border-red-200" : ""}`}>
+                        <div key={item.id} className={`p-4 border rounded-lg ${isOverdue ? "bg-destructive/10 border-destructive/30" : ""}`}>
                           <div className="flex items-start gap-4">
                             <Checkbox checked={false} className="mt-1" />
                             <div className="flex-1">
@@ -301,7 +301,7 @@ export default function ActionItemsBlockers() {
         {/* ── Blockers View ─────────────────────────────────────────────── */}
         <TabsContent value="blockers" className="space-y-4">
           {chronicBlockers.length > 0 && (
-            <Card className="p-4 border-red-200 bg-red-50">
+            <Card className="p-4 border-destructive/30 bg-destructive/10">
               <div className="text-sm font-semibold text-red-900">
                 🚨 {chronicBlockers.length} chronic blocker{chronicBlockers.length !== 1 ? "s" : ""} (appeared 3+ times)
               </div>
@@ -360,7 +360,7 @@ export default function ActionItemsBlockers() {
                   return (
                     <div
                       key={blocker.id}
-                      className={`p-4 border rounded-lg ${isChronic ? "border-red-300 bg-red-50" : blocker.status === "resolved" ? "opacity-60" : ""}`}
+                      className={`p-4 border rounded-lg ${isChronic ? "border-red-300 bg-destructive/10" : blocker.status === "resolved" ? "opacity-60" : ""}`}
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
