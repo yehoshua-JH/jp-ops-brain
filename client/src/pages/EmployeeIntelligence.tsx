@@ -55,7 +55,7 @@ export default function EmployeeIntelligence() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/80" />
       </div>
     );
   }
@@ -64,7 +64,7 @@ export default function EmployeeIntelligence() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Employee Intelligence</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-foreground/80 mt-2">
           Track criticality, redundancy gaps, and replacement readiness for every team member.
         </p>
       </div>
@@ -104,7 +104,7 @@ export default function EmployeeIntelligence() {
         {/* Employee List */}
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/80" />
             <Input
               placeholder="Search employees..."
               value={search}
@@ -114,7 +114,7 @@ export default function EmployeeIntelligence() {
           </div>
 
           {filtered.length === 0 ? (
-            <Card className="p-6 text-center text-muted-foreground">
+            <Card className="p-6 text-center text-foreground/80">
               No employees found. Add employees to track their intelligence.
             </Card>
           ) : (
@@ -128,7 +128,7 @@ export default function EmployeeIntelligence() {
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="font-semibold truncate">{emp.name}</div>
-                      <div className="text-sm text-muted-foreground truncate">{emp.role}</div>
+                      <div className="text-sm text-foreground/80 truncate">{emp.role}</div>
                       <div className="flex items-center gap-2 mt-2">
                         {getStatusBadge(emp.status)}
                         <span className={`text-xs font-medium px-2 py-0.5 rounded border ${getCriticalityColor(emp.criticalityScore)}`}>
@@ -140,7 +140,7 @@ export default function EmployeeIntelligence() {
                       <div className={`text-lg font-bold ${getReadinessColor(emp.replacementReadiness)}`}>
                         {emp.replacementReadiness}%
                       </div>
-                      <div className="text-xs text-muted-foreground">ready</div>
+                      <div className="text-xs text-foreground/80">ready</div>
                     </div>
                   </div>
                   {!emp.backupPerson && (
@@ -162,9 +162,9 @@ export default function EmployeeIntelligence() {
               <div className="flex items-start justify-between">
                 <div>
                   <h2 className="text-2xl font-bold">{selectedEmployee.name}</h2>
-                  <p className="text-muted-foreground">{selectedEmployee.role}</p>
+                  <p className="text-foreground/80">{selectedEmployee.role}</p>
                   {selectedEmployee.department && (
-                    <p className="text-sm text-muted-foreground">{selectedEmployee.department}</p>
+                    <p className="text-sm text-foreground/80">{selectedEmployee.department}</p>
                   )}
                 </div>
                 <div className="text-right">
@@ -175,22 +175,22 @@ export default function EmployeeIntelligence() {
               {/* Criticality & Readiness */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-muted rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground mb-1">Criticality Score</div>
+                  <div className="text-sm text-foreground/80 mb-1">Criticality Score</div>
                   <div className={`text-3xl font-bold ${selectedEmployee.criticalityScore >= 8 ? "text-red-600" : selectedEmployee.criticalityScore >= 6 ? "text-orange-600" : "text-green-600"}`}>
                     {selectedEmployee.criticalityScore}/10
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xs text-foreground/80 mt-1">
                     {selectedEmployee.criticalityScore >= 8 ? "Critical — high risk if they leave" :
                      selectedEmployee.criticalityScore >= 6 ? "Important — moderate risk" :
                      "Manageable risk level"}
                   </div>
                 </div>
                 <div className="bg-muted rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground mb-1">Replacement Readiness</div>
+                  <div className="text-sm text-foreground/80 mb-1">Replacement Readiness</div>
                   <div className={`text-3xl font-bold ${getReadinessColor(selectedEmployee.replacementReadiness)}`}>
                     {selectedEmployee.replacementReadiness}%
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xs text-foreground/80 mt-1">
                     {selectedEmployee.replacementReadiness >= 70 ? "Well covered" :
                      selectedEmployee.replacementReadiness >= 40 ? "Partially covered" :
                      "Urgent: needs cross-training"}
@@ -250,7 +250,7 @@ export default function EmployeeIntelligence() {
               )}
             </Card>
           ) : (
-            <Card className="p-12 text-center text-muted-foreground">
+            <Card className="p-12 text-center text-foreground/80">
               <UserCheck className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p>Select an employee to view their intelligence profile</p>
             </Card>

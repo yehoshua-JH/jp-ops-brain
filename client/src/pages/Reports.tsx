@@ -76,7 +76,7 @@ ${listSessions.data?.map((s) => `- Session #${s.sessionNumber} (${new Date(s.dat
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Reports & Rollups</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-foreground/80 mt-2">
           Generate daily, weekly, and monthly rollup reports using the 4-stage Claude pipeline.
         </p>
       </div>
@@ -84,7 +84,7 @@ ${listSessions.data?.map((s) => `- Session #${s.sessionNumber} (${new Date(s.dat
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="p-6">
           <h3 className="font-semibold mb-4">Daily Rollup</h3>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-foreground/80 mb-4">
             Aggregate all sessions from today and generate daily operational summary.
           </p>
           <Button
@@ -105,7 +105,7 @@ ${listSessions.data?.map((s) => `- Session #${s.sessionNumber} (${new Date(s.dat
 
         <Card className="p-6">
           <h3 className="font-semibold mb-4">Weekly Review</h3>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-foreground/80 mb-4">
             Aggregate daily rollups and identify weekly trends and patterns.
           </p>
           <Button
@@ -126,7 +126,7 @@ ${listSessions.data?.map((s) => `- Session #${s.sessionNumber} (${new Date(s.dat
 
         <Card className="p-6">
           <h3 className="font-semibold mb-4">Monthly Review</h3>
-          <p className="text-sm text-muted-foreground mb-4">
+          <p className="text-sm text-foreground/80 mb-4">
             Aggregate weekly reviews and generate timeline stamp with auto-timestamp.
           </p>
           <Button

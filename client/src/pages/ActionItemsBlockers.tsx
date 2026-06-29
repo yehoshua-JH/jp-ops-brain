@@ -89,7 +89,7 @@ export default function ActionItemsBlockers() {
   if (listActionItems.isLoading || listBlockers.isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground/80" />
       </div>
     );
   }
@@ -100,7 +100,7 @@ export default function ActionItemsBlockers() {
         <AlertTriangle className="w-12 h-12 text-orange-500" />
         <div>
           <h3 className="font-semibold text-lg">Unable to load data</h3>
-          <p className="text-muted-foreground text-sm mt-1">
+          <p className="text-foreground/80 text-sm mt-1">
             {listActionItems.error?.message || listBlockers.error?.message || "Please make sure you are logged in."}
           </p>
         </div>
@@ -115,7 +115,7 @@ export default function ActionItemsBlockers() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Action Items & Blockers</h1>
-        <p className="text-muted-foreground mt-2">
+        <p className="text-foreground/80 mt-2">
           Unified task board for tracking action items and blockers across all sessions.
         </p>
       </div>
@@ -236,7 +236,7 @@ export default function ActionItemsBlockers() {
             <Card className="p-6">
               <h3 className="font-semibold mb-4">Open Items ({openActionItems.length})</h3>
               {openActionItems.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
+                <div className="text-center py-8 text-foreground/80">
                   {listActionItems.data?.length === 0
                     ? "No action items yet. Process a session recording to populate this board."
                     : "No open action items matching your filters."}
@@ -263,7 +263,7 @@ export default function ActionItemsBlockers() {
                                 {isOverdue && <Badge className="bg-orange-600">OVERDUE</Badge>}
                                 {item.domainTag && <Badge variant="outline" className="text-xs">{item.domainTag}</Badge>}
                               </div>
-                              <div className="text-sm text-muted-foreground space-y-1">
+                              <div className="text-sm text-foreground/80 space-y-1">
                                 <p><strong>Owner:</strong> {item.owner}</p>
                                 {item.deadline && (
                                   <p><strong>Due:</strong> {new Date(item.deadline).toLocaleDateString()}</p>
@@ -289,7 +289,7 @@ export default function ActionItemsBlockers() {
                   <div key={item.id} className="p-3 border rounded-lg opacity-60">
                     <div className="flex items-center gap-2">
                       <Checkbox checked={true} disabled />
-                      <span className="line-through text-muted-foreground">{item.task}</span>
+                      <span className="line-through text-foreground/80">{item.task}</span>
                     </div>
                   </div>
                 ))}
@@ -348,7 +348,7 @@ export default function ActionItemsBlockers() {
           <Card className="p-6">
             <h3 className="font-semibold mb-4">Blockers ({filteredBlockers.length})</h3>
             {filteredBlockers.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
+              <div className="text-center py-8 text-foreground/80">
                 {listBlockers.data?.length === 0
                   ? "No blockers recorded yet. Process a session recording to populate this board."
                   : "No blockers matching your filters."}
@@ -372,7 +372,7 @@ export default function ActionItemsBlockers() {
                             </Badge>
                             {blocker.domainTag && <Badge variant="outline" className="text-xs">{blocker.domainTag}</Badge>}
                           </div>
-                          <div className="text-sm text-muted-foreground space-y-1">
+                          <div className="text-sm text-foreground/80 space-y-1">
                             <p><strong>First seen:</strong> Session #{blocker.firstAppearedSession}</p>
                             <p><strong>Times appeared:</strong> {blocker.timesAppeared}</p>
                             {blocker.resolutionNote && (

@@ -44,11 +44,11 @@ function StatCard({
   return (
     <div className="bg-muted/30 border border-border rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-foreground/40 uppercase tracking-wider">{label}</span>
+        <span className="text-xs text-foreground/60 uppercase tracking-wider">{label}</span>
         <Icon className="w-4 h-4 text-foreground/20" />
       </div>
       <span className={`text-2xl font-bold ${color}`}>{value}</span>
-      {sub && <span className="text-xs text-foreground/40">{sub}</span>}
+      {sub && <span className="text-xs text-foreground/60">{sub}</span>}
     </div>
   );
 }
@@ -84,13 +84,13 @@ export default function Home() {
             <Brain className="w-5 h-5 text-indigo-400" />
             <h1 className="text-xl font-bold text-foreground">Command Center</h1>
           </div>
-          <p className="text-sm text-foreground/40">
+          <p className="text-sm text-foreground/60">
             JivePilot Ops Brain · {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
         <Button
           onClick={() => navigate("/voice")}
-          className="bg-indigo-600 hover:bg-indigo-700 text-foreground gap-2"
+          className="bg-indigo-600 hover:bg-indigo-700 !text-white gap-2"
         >
           <Mic className="w-4 h-4" />
           Ask the Brain
@@ -136,7 +136,7 @@ export default function Home() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
+              className="text-xs text-foreground/60 hover:text-foreground gap-1 h-7"
               onClick={() => navigate("/domains")}
             >
               View all <ArrowRight className="w-3 h-3" />
@@ -200,7 +200,7 @@ export default function Home() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
+                className="text-xs text-foreground/60 hover:text-foreground gap-1 h-7"
                 onClick={() => navigate("/issues")}
               >
                 All <ArrowRight className="w-3 h-3" />
@@ -214,7 +214,7 @@ export default function Home() {
                   <div key={b.id} className="flex items-start gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs text-foreground/70 leading-snug">{b.description}</p>
+                      <p className="text-xs text-foreground/80 leading-snug">{b.description}</p>
                       <p className="text-xs text-foreground/30">{b.domainTag} · {b.timesAppeared}x</p>
                     </div>
                   </div>
@@ -233,7 +233,7 @@ export default function Home() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
+                className="text-xs text-foreground/60 hover:text-foreground gap-1 h-7"
                 onClick={() => navigate("/clients")}
               >
                 All <ArrowRight className="w-3 h-3" />
@@ -245,7 +245,7 @@ export default function Home() {
               <div className="space-y-2">
                 {atRiskClients.map((c) => (
                   <div key={c.id} className="flex items-center justify-between">
-                    <span className="text-xs text-foreground/70">{c.name}</span>
+                    <span className="text-xs text-foreground/80">{c.name}</span>
                     <Badge variant="outline" className="text-xs border-0 bg-yellow-500/10 text-yellow-400">
                       {c.healthScore}% health
                     </Badge>
@@ -265,7 +265,7 @@ export default function Home() {
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
+                className="text-xs text-foreground/60 hover:text-foreground gap-1 h-7"
                 onClick={() => navigate("/employees")}
               >
                 All <ArrowRight className="w-3 h-3" />
@@ -278,7 +278,7 @@ export default function Home() {
                 {criticalEmployees.slice(0, 4).map((e) => (
                   <div key={e.id} className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-foreground/70">{e.name}</p>
+                      <p className="text-xs text-foreground/80">{e.name}</p>
                       <p className="text-xs text-foreground/30">{e.role}</p>
                     </div>
                     <div className="text-right">
@@ -311,7 +311,7 @@ export default function Home() {
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
+            className="text-xs text-foreground/60 hover:text-foreground gap-1 h-7"
             onClick={() => navigate("/sessions")}
           >
             All sessions <ArrowRight className="w-3 h-3" />
@@ -332,7 +332,7 @@ export default function Home() {
                 onClick={() => navigate(`/sessions/${s.sessionNumber}`)}
               >
                 <span className="text-xs text-indigo-400 font-mono w-12">#{s.sessionNumber}</span>
-                <span className="text-xs text-foreground/40 w-24">
+                <span className="text-xs text-foreground/60 w-24">
                   {new Date(s.date).toLocaleDateString()}
                 </span>
                 <span className="text-xs text-foreground/60 flex-1 truncate">{s.executiveSummary}</span>
@@ -359,7 +359,7 @@ export default function Home() {
             className="flex items-center gap-3 bg-muted/30 hover:bg-card/8 border border-border rounded-xl px-4 py-3 transition-colors text-left"
           >
             <item.icon className={`w-4 h-4 ${item.color}`} />
-            <span className="text-sm text-foreground/70">{item.label}</span>
+            <span className="text-sm text-foreground/80">{item.label}</span>
           </button>
         ))}
       </div>

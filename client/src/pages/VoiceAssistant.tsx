@@ -254,7 +254,7 @@ export default function VoiceAssistant() {
           </div>
           <div>
             <h1 className="text-base font-semibold text-foreground">Ops Brain Assistant</h1>
-            <p className="text-xs text-foreground/40">Voice-first · Powered by all your operational data</p>
+            <p className="text-xs text-foreground/60">Voice-first · Powered by all your operational data</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -267,7 +267,7 @@ export default function VoiceAssistant() {
                 ? "bg-yellow-500/20 text-yellow-400"
                 : recordingState === "speaking"
                 ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-muted/30 text-foreground/40"
+                : "bg-muted/30 text-foreground/60"
             }`}
           >
             {recordingState === "recording"
@@ -281,7 +281,7 @@ export default function VoiceAssistant() {
           <Button
             variant="ghost"
             size="icon"
-            className="w-8 h-8 text-foreground/40 hover:text-foreground"
+            className="w-8 h-8 text-foreground/60 hover:text-foreground"
             onClick={() => {
               setIsMuted((m) => !m);
               if (!isMuted) window.speechSynthesis?.cancel();
@@ -307,7 +307,7 @@ export default function VoiceAssistant() {
             <div
               className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-indigo-600 text-foreground rounded-tr-sm"
+                  ? "bg-indigo-600 !text-white rounded-tr-sm"
                   : "bg-card/8 text-foreground/90 border border-border rounded-tl-sm"
               }`}
             >
@@ -352,7 +352,7 @@ export default function VoiceAssistant() {
               <button
                 key={q}
                 onClick={() => sendTextToAI(q)}
-                className="text-xs bg-muted/30 hover:bg-card/10 border border-border rounded-full px-3 py-1.5 text-foreground/50 hover:text-foreground/80 transition-colors"
+                className="text-xs bg-muted/30 hover:bg-card/10 border border-border rounded-full px-3 py-1.5 text-foreground/70 hover:text-foreground/80 transition-colors"
               >
                 {q}
               </button>
