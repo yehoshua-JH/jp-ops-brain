@@ -32,7 +32,7 @@ function StatCard({
   label,
   value,
   sub,
-  color = "text-white",
+  color = "text-foreground",
   icon: Icon,
 }: {
   label: string;
@@ -42,13 +42,13 @@ function StatCard({
   icon: React.ElementType;
 }) {
   return (
-    <div className="bg-card/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
+    <div className="bg-muted/30 border border-border rounded-xl p-4 flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-white/40 uppercase tracking-wider">{label}</span>
-        <Icon className="w-4 h-4 text-white/20" />
+        <span className="text-xs text-foreground/40 uppercase tracking-wider">{label}</span>
+        <Icon className="w-4 h-4 text-foreground/20" />
       </div>
       <span className={`text-2xl font-bold ${color}`}>{value}</span>
-      {sub && <span className="text-xs text-white/40">{sub}</span>}
+      {sub && <span className="text-xs text-foreground/40">{sub}</span>}
     </div>
   );
 }
@@ -76,21 +76,21 @@ export default function Home() {
       : 0;
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white p-6">
+    <div className="min-h-screen bg-background text-foreground p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <Brain className="w-5 h-5 text-indigo-400" />
-            <h1 className="text-xl font-bold text-white">Command Center</h1>
+            <h1 className="text-xl font-bold text-foreground">Command Center</h1>
           </div>
-          <p className="text-sm text-white/40">
+          <p className="text-sm text-foreground/40">
             JivePilot Ops Brain · {new Date().toLocaleDateString("en-US", { weekday: "long", year: "numeric", month: "long", day: "numeric" })}
           </p>
         </div>
         <Button
           onClick={() => navigate("/voice")}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+          className="bg-indigo-600 hover:bg-indigo-700 text-foreground gap-2"
         >
           <Mic className="w-4 h-4" />
           Ask the Brain
@@ -110,14 +110,14 @@ export default function Home() {
           label="Open Blockers"
           value={openBlockers?.length ?? 0}
           sub={`${criticalBlockers.length} chronic (3+ sessions)`}
-          color={criticalBlockers.length > 0 ? "text-red-400" : "text-white"}
+          color={criticalBlockers.length > 0 ? "text-red-400" : "text-foreground"}
           icon={AlertTriangle}
         />
         <StatCard
           label="Action Items"
           value={openActions?.length ?? 0}
           sub={`${overdueActions.length} overdue`}
-          color={overdueActions.length > 0 ? "text-yellow-400" : "text-white"}
+          color={overdueActions.length > 0 ? "text-yellow-400" : "text-foreground"}
           icon={CheckCircle2}
         />
         <StatCard
@@ -130,13 +130,13 @@ export default function Home() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Domain Health */}
-        <div className="lg:col-span-2 bg-card/5 border border-white/10 rounded-xl p-5">
+        <div className="lg:col-span-2 bg-muted/30 border border-border rounded-xl p-5">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white/80">Domain Health</h2>
+            <h2 className="text-sm font-semibold text-foreground/80">Domain Health</h2>
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-white/40 hover:text-white gap-1 h-7"
+              className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
               onClick={() => navigate("/domains")}
             >
               View all <ArrowRight className="w-3 h-3" />
@@ -144,13 +144,13 @@ export default function Home() {
           </div>
           {domainsLoading ? (
             <div className="space-y-3">
-              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 bg-card/5" />)}
+              {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 bg-muted/30" />)}
             </div>
           ) : (
             <div className="space-y-3">
               {(domains ?? []).map((d) => (
                 <div key={d.id} className="flex items-center gap-3">
-                  <span className="text-xs text-white/60 w-36 truncate">{d.name}</span>
+                  <span className="text-xs text-foreground/60 w-36 truncate">{d.name}</span>
                   <div className="flex-1">
                     <HealthBar score={d.currentMaturityScore ?? 0} />
                   </div>
@@ -172,7 +172,7 @@ export default function Home() {
                         ? "bg-emerald-500/10 text-emerald-400"
                         : d.trend === "declining"
                         ? "bg-red-500/10 text-red-400"
-                        : "bg-card/5 text-white/30"
+                        : "bg-muted/30 text-foreground/30"
                     }`}
                   >
                     {d.trend === "improving" ? (
@@ -191,31 +191,31 @@ export default function Home() {
         {/* Right column */}
         <div className="space-y-4">
           {/* Critical Blockers */}
-          <div className="bg-card/5 border border-white/10 rounded-xl p-4">
+          <div className="bg-muted/30 border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-red-400" />
                 Critical Blockers
               </h2>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-white/40 hover:text-white gap-1 h-7"
+                className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
                 onClick={() => navigate("/issues")}
               >
                 All <ArrowRight className="w-3 h-3" />
               </Button>
             </div>
             {criticalBlockers.length === 0 ? (
-              <p className="text-xs text-white/30 text-center py-3">No chronic blockers</p>
+              <p className="text-xs text-foreground/30 text-center py-3">No chronic blockers</p>
             ) : (
               <div className="space-y-2">
                 {criticalBlockers.slice(0, 4).map((b) => (
                   <div key={b.id} className="flex items-start gap-2">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
                     <div>
-                      <p className="text-xs text-white/70 leading-snug">{b.description}</p>
-                      <p className="text-xs text-white/30">{b.domainTag} · {b.timesAppeared}x</p>
+                      <p className="text-xs text-foreground/70 leading-snug">{b.description}</p>
+                      <p className="text-xs text-foreground/30">{b.domainTag} · {b.timesAppeared}x</p>
                     </div>
                   </div>
                 ))}
@@ -224,28 +224,28 @@ export default function Home() {
           </div>
 
           {/* At-Risk Clients */}
-          <div className="bg-card/5 border border-white/10 rounded-xl p-4">
+          <div className="bg-muted/30 border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-yellow-400" />
                 At-Risk Clients
               </h2>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-white/40 hover:text-white gap-1 h-7"
+                className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
                 onClick={() => navigate("/clients")}
               >
                 All <ArrowRight className="w-3 h-3" />
               </Button>
             </div>
             {atRiskClients.length === 0 ? (
-              <p className="text-xs text-white/30 text-center py-3">No at-risk clients</p>
+              <p className="text-xs text-foreground/30 text-center py-3">No at-risk clients</p>
             ) : (
               <div className="space-y-2">
                 {atRiskClients.map((c) => (
                   <div key={c.id} className="flex items-center justify-between">
-                    <span className="text-xs text-white/70">{c.name}</span>
+                    <span className="text-xs text-foreground/70">{c.name}</span>
                     <Badge variant="outline" className="text-xs border-0 bg-yellow-500/10 text-yellow-400">
                       {c.healthScore}% health
                     </Badge>
@@ -256,30 +256,30 @@ export default function Home() {
           </div>
 
           {/* Critical Employees */}
-          <div className="bg-card/5 border border-white/10 rounded-xl p-4">
+          <div className="bg-muted/30 border border-border rounded-xl p-4">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-semibold text-white/80 flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
                 <Users className="w-4 h-4 text-orange-400" />
                 Key People Risk
               </h2>
               <Button
                 variant="ghost"
                 size="sm"
-                className="text-xs text-white/40 hover:text-white gap-1 h-7"
+                className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
                 onClick={() => navigate("/employees")}
               >
                 All <ArrowRight className="w-3 h-3" />
               </Button>
             </div>
             {criticalEmployees.length === 0 ? (
-              <p className="text-xs text-white/30 text-center py-3">No critical risks</p>
+              <p className="text-xs text-foreground/30 text-center py-3">No critical risks</p>
             ) : (
               <div className="space-y-2">
                 {criticalEmployees.slice(0, 4).map((e) => (
                   <div key={e.id} className="flex items-center justify-between">
                     <div>
-                      <p className="text-xs text-white/70">{e.name}</p>
-                      <p className="text-xs text-white/30">{e.role}</p>
+                      <p className="text-xs text-foreground/70">{e.name}</p>
+                      <p className="text-xs text-foreground/30">{e.role}</p>
                     </div>
                     <div className="text-right">
                       <Badge
@@ -305,13 +305,13 @@ export default function Home() {
       </div>
 
       {/* Recent Sessions */}
-      <div className="mt-6 bg-card/5 border border-white/10 rounded-xl p-5">
+      <div className="mt-6 bg-muted/30 border border-border rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-semibold text-white/80">Recent Sessions</h2>
+          <h2 className="text-sm font-semibold text-foreground/80">Recent Sessions</h2>
           <Button
             variant="ghost"
             size="sm"
-            className="text-xs text-white/40 hover:text-white gap-1 h-7"
+            className="text-xs text-foreground/40 hover:text-foreground gap-1 h-7"
             onClick={() => navigate("/sessions")}
           >
             All sessions <ArrowRight className="w-3 h-3" />
@@ -319,24 +319,24 @@ export default function Home() {
         </div>
         {sessionsLoading ? (
           <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 bg-card/5" />)}
+            {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-12 bg-muted/30" />)}
           </div>
         ) : recentSessions.length === 0 ? (
-          <p className="text-xs text-white/30 text-center py-4">No sessions yet</p>
+          <p className="text-xs text-foreground/30 text-center py-4">No sessions yet</p>
         ) : (
           <div className="space-y-2">
             {recentSessions.map((s) => (
               <div
                 key={s.id}
-                className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-card/5 cursor-pointer transition-colors"
+                className="flex items-center gap-4 py-2.5 px-3 rounded-lg hover:bg-muted/30 cursor-pointer transition-colors"
                 onClick={() => navigate(`/sessions/${s.sessionNumber}`)}
               >
                 <span className="text-xs text-indigo-400 font-mono w-12">#{s.sessionNumber}</span>
-                <span className="text-xs text-white/40 w-24">
+                <span className="text-xs text-foreground/40 w-24">
                   {new Date(s.date).toLocaleDateString()}
                 </span>
-                <span className="text-xs text-white/60 flex-1 truncate">{s.executiveSummary}</span>
-                <Badge variant="outline" className="text-xs border-0 bg-card/5 text-white/30">
+                <span className="text-xs text-foreground/60 flex-1 truncate">{s.executiveSummary}</span>
+                <Badge variant="outline" className="text-xs border-0 bg-muted/30 text-foreground/30">
                   {s.meetingType}
                 </Badge>
               </div>
@@ -356,10 +356,10 @@ export default function Home() {
           <button
             key={item.path}
             onClick={() => navigate(item.path)}
-            className="flex items-center gap-3 bg-card/5 hover:bg-card/8 border border-white/10 rounded-xl px-4 py-3 transition-colors text-left"
+            className="flex items-center gap-3 bg-muted/30 hover:bg-card/8 border border-border rounded-xl px-4 py-3 transition-colors text-left"
           >
             <item.icon className={`w-4 h-4 ${item.color}`} />
-            <span className="text-sm text-white/70">{item.label}</span>
+            <span className="text-sm text-foreground/70">{item.label}</span>
           </button>
         ))}
       </div>

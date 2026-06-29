@@ -242,19 +242,19 @@ export default function VoiceAssistant() {
 
   return (
     <div
-      className="flex flex-col h-full min-h-[720px] bg-[#0a0a14] text-white"
+      className="flex flex-col h-full min-h-[720px] bg-background text-foreground"
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/10">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-indigo-600/30 border border-indigo-500/40 flex items-center justify-center">
             <Brain className="w-5 h-5 text-indigo-400" />
           </div>
           <div>
-            <h1 className="text-base font-semibold text-white">Ops Brain Assistant</h1>
-            <p className="text-xs text-white/40">Voice-first · Powered by all your operational data</p>
+            <h1 className="text-base font-semibold text-foreground">Ops Brain Assistant</h1>
+            <p className="text-xs text-foreground/40">Voice-first · Powered by all your operational data</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -267,7 +267,7 @@ export default function VoiceAssistant() {
                 ? "bg-yellow-500/20 text-yellow-400"
                 : recordingState === "speaking"
                 ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-card/5 text-white/40"
+                : "bg-muted/30 text-foreground/40"
             }`}
           >
             {recordingState === "recording"
@@ -281,7 +281,7 @@ export default function VoiceAssistant() {
           <Button
             variant="ghost"
             size="icon"
-            className="w-8 h-8 text-white/40 hover:text-white"
+            className="w-8 h-8 text-foreground/40 hover:text-foreground"
             onClick={() => {
               setIsMuted((m) => !m);
               if (!isMuted) window.speechSynthesis?.cancel();
@@ -307,17 +307,17 @@ export default function VoiceAssistant() {
             <div
               className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user"
-                  ? "bg-indigo-600 text-white rounded-tr-sm"
-                  : "bg-card/8 text-white/90 border border-white/10 rounded-tl-sm"
+                  ? "bg-indigo-600 text-foreground rounded-tr-sm"
+                  : "bg-card/8 text-foreground/90 border border-border rounded-tl-sm"
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
               {msg.source && (
-                <p className="text-xs text-white/30 mt-2 border-t border-white/10 pt-2">
+                <p className="text-xs text-foreground/30 mt-2 border-t border-border pt-2">
                   Source: {msg.source}
                 </p>
               )}
-              <p className="text-xs text-white/25 mt-1">
+              <p className="text-xs text-foreground/25 mt-1">
                 {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
@@ -328,7 +328,7 @@ export default function VoiceAssistant() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
               <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
             </div>
-            <div className="bg-card/8 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-white/60">
+            <div className="bg-card/8 border border-border rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-foreground/60">
               {uploadProgress ?? "Searching operational data..."}
             </div>
           </div>
@@ -339,7 +339,7 @@ export default function VoiceAssistant() {
       {/* Suggested questions */}
       {messages.length <= 2 && (
         <div className="px-6 pb-2">
-          <p className="text-xs text-white/30 mb-2">Try asking:</p>
+          <p className="text-xs text-foreground/30 mb-2">Try asking:</p>
           <div className="flex flex-wrap gap-2">
             {[
               "What are our top open issues?",
@@ -352,7 +352,7 @@ export default function VoiceAssistant() {
               <button
                 key={q}
                 onClick={() => sendTextToAI(q)}
-                className="text-xs bg-card/5 hover:bg-card/10 border border-white/10 rounded-full px-3 py-1.5 text-white/50 hover:text-white/80 transition-colors"
+                className="text-xs bg-muted/30 hover:bg-card/10 border border-border rounded-full px-3 py-1.5 text-foreground/50 hover:text-foreground/80 transition-colors"
               >
                 {q}
               </button>
@@ -363,11 +363,11 @@ export default function VoiceAssistant() {
 
       {/* Drop zone hint */}
       <div
-        className="mx-6 mb-3 border border-dashed border-white/10 rounded-xl px-4 py-3 text-center cursor-pointer hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-colors"
+        className="mx-6 mb-3 border border-dashed border-border rounded-xl px-4 py-3 text-center cursor-pointer hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-colors"
         onClick={() => fileInputRef.current?.click()}
       >
-        <Upload className="w-4 h-4 text-white/30 mx-auto mb-1" />
-        <p className="text-xs text-white/30">Drop a recording here or click to upload · mp3, m4a, webm, wav · max 16MB</p>
+        <Upload className="w-4 h-4 text-foreground/30 mx-auto mb-1" />
+        <p className="text-xs text-foreground/30">Drop a recording here or click to upload · mp3, m4a, webm, wav · max 16MB</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -390,14 +390,14 @@ export default function VoiceAssistant() {
           disabled={recordingState === "processing" || !!uploadProgress}
         >
           {recordingState === "processing" ? (
-            <Loader2 className="w-8 h-8 text-white animate-spin" />
+            <Loader2 className="w-8 h-8 text-foreground animate-spin" />
           ) : recordingState === "recording" ? (
-            <MicOff className="w-8 h-8 text-white" />
+            <MicOff className="w-8 h-8 text-foreground" />
           ) : (
-            <Mic className="w-8 h-8 text-white" />
+            <Mic className="w-8 h-8 text-foreground" />
           )}
         </button>
-        <p className="text-xs text-white/30">
+        <p className="text-xs text-foreground/30">
           {recordingState === "recording"
             ? "Release to send"
             : recordingState === "processing"

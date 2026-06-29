@@ -222,7 +222,7 @@ export default function ProcessLibrary() {
                       <DocBar pct={proc.documentationPct} />
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-card/20 text-white border-white/30" : (STATUS_STYLES[proc.status] ?? "bg-muted text-muted-foreground")}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-card/20 text-foreground border-border" : (STATUS_STYLES[proc.status] ?? "bg-muted text-muted-foreground")}`}>
                         {proc.status.replace("_", " ")}
                       </span>
                       {proc.automationOpportunity === "high" && (
