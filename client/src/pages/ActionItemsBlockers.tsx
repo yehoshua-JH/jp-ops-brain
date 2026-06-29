@@ -6,8 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, X, AlertTriangle } from "lucide-react";
+import { Loader2, X, AlertTriangle, Zap } from "lucide-react";
 import { Tabs as TabsUI, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import RiskUpdateSheet from "@/components/RiskUpdateSheet";
 
 export default function ActionItemsBlockers() {
   // ── All hooks MUST be declared before any early returns ──────────────────
@@ -18,6 +19,7 @@ export default function ActionItemsBlockers() {
   const [searchText, setSearchText] = useState<string>("");
   const [blockerSearchText, setBlockerSearchText] = useState<string>("");
   const [blockerStatusFilter, setBlockerStatusFilter] = useState<string>("all");
+  const [riskSheet, setRiskSheet] = useState<{ id: number; title: string; status: string } | null>(null);
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
   const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
 
@@ -362,7 +364,7 @@ export default function ActionItemsBlockers() {
                       key={blocker.id}
                       className={`p-4 border rounded-lg ${isChronic ? "border-red-300 bg-destructive/10" : blocker.status === "resolved" ? "opacity-60" : ""}`}
                     >
-                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="font-semibold">{blocker.description}</span>
@@ -380,6 +382,17 @@ export default function ActionItemsBlockers() {
                             )}
                           </div>
                         </div>
+                        {blocker.status === "open" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-shrink-0 h-8 text-xs gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 bg-transparent"
+                            onClick={() => setRiskSheet({ id: blocker.id, title: blocker.description, status: blocker.status })}
+                          >
+                            <Zap className="w-3 h-3" />
+                            Update
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );
@@ -389,6 +402,18 @@ export default function ActionItemsBlockers() {
           </Card>
         </TabsContent>
       </TabsUI>
+
+      {riskSheet && (
+        <RiskUpdateSheet
+          open={!!riskSheet}
+          onClose={() => setRiskSheet(null)}
+          riskType="blocker"
+          id={riskSheet.id}
+          title={riskSheet.title}
+          currentStatus={riskSheet.status}
+          onUpdated={() => listBlockers.refetch()}
+        />
+      )}
     </div>
   );
 }

@@ -574,3 +574,41 @@ export async function getLatestDomainMaturity() {
   }
   return Array.from(latestMap.values());
 }
+
+// ─── Risk Quick-Update Helpers ────────────────────────────────────────────────
+
+/** Add/update a note on a blocker without resolving it */
+export async function updateBlockerNote(id: number, note: string) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(blockers).set({ resolutionNote: note }).where(eq(blockers.id, id));
+}
+
+/** Escalate a blocker — marks it chronic regardless of timesAppeared */
+export async function escalateBlocker(id: number, note?: string) {
+  const db = await getDb();
+  if (!db) return;
+  const updates: Record<string, unknown> = { isChronicFlag: true };
+  if (note !== undefined) updates.resolutionNote = note;
+  await db.update(blockers).set(updates).where(eq(blockers.id, id));
+}
+
+/** Quick-update client risk status, health score, or notes */
+export async function updateClientRisk(
+  id: number,
+  updates: { status?: "active" | "at_risk" | "churned" | "prospect"; healthScore?: number; notes?: string; riskFlags?: string }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(clients).set(updates).where(eq(clients.id, id));
+}
+
+/** Quick-update employee risk status, criticality score, or notes */
+export async function updateEmployeeRisk(
+  id: number,
+  updates: { status?: "active" | "inactive" | "at_risk"; criticalityScore?: number; notes?: string }
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(employees).set(updates).where(eq(employees.id, id));
+}

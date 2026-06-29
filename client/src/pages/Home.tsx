@@ -1,5 +1,7 @@
 import { useLocation } from "wouter";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import RiskUpdateSheet, { type RiskType } from "@/components/RiskUpdateSheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,6 +57,8 @@ function StatCard({
 
 export default function Home() {
   const [, navigate] = useLocation();
+  const [riskSheet, setRiskSheet] = useState<{ id: number; title: string; status: string; riskType: RiskType; subtitle?: string } | null>(null);
+  const utils = trpc.useUtils();
   const { data: domains, isLoading: domainsLoading } = trpc.domains.getAll.useQuery();
   const { data: sessions, isLoading: sessionsLoading } = trpc.sessions.getAll.useQuery();
   const { data: openBlockers } = trpc.blockers.getOpen.useQuery();
@@ -211,12 +215,20 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {criticalBlockers.slice(0, 4).map((b) => (
-                  <div key={b.id} className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-foreground leading-snug">{b.description}</p>
-                      <p className="text-xs text-foreground">{b.domainTag} · {b.timesAppeared}x</p>
+                  <div key={b.id} className="flex items-start justify-between gap-2">
+                    <div className="flex items-start gap-2 flex-1 min-w-0">
+                      <div className="w-1.5 h-1.5 rounded-full bg-red-500 mt-1.5 flex-shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs text-foreground leading-snug truncate">{b.description}</p>
+                        <p className="text-xs text-foreground">{b.domainTag} · {b.timesAppeared}x</p>
+                      </div>
                     </div>
+                    <button
+                      className="flex-shrink-0 text-xs text-indigo-400 hover:text-indigo-300 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-500/10 transition-colors"
+                      onClick={() => setRiskSheet({ id: b.id, title: b.description, status: b.status, riskType: "blocker", subtitle: `${b.domainTag ?? ""} · appeared ${b.timesAppeared}x` })}
+                    >
+                      Update
+                    </button>
                   </div>
                 ))}
               </div>
@@ -244,11 +256,19 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {atRiskClients.map((c) => (
-                  <div key={c.id} className="flex items-center justify-between">
-                    <span className="text-xs text-foreground">{c.name}</span>
-                    <Badge variant="outline" className="text-xs border-0 bg-yellow-500/10 text-yellow-400">
-                      {c.healthScore}% health
-                    </Badge>
+                  <div key={c.id} className="flex items-center justify-between gap-2">
+                    <span className="text-xs text-foreground truncate">{c.name}</span>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <Badge variant="outline" className="text-xs border-0 bg-yellow-500/10 text-yellow-400">
+                        {c.healthScore}% health
+                      </Badge>
+                      <button
+                        className="text-xs text-indigo-400 hover:text-indigo-300 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-500/10 transition-colors"
+                        onClick={() => setRiskSheet({ id: c.id, title: c.name, status: c.status ?? "at_risk", riskType: "client", subtitle: `Health: ${c.healthScore}%` })}
+                      >
+                        Update
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -276,25 +296,33 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {criticalEmployees.slice(0, 4).map((e) => (
-                  <div key={e.id} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-xs text-foreground">{e.name}</p>
+                  <div key={e.id} className="flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="text-xs text-foreground truncate">{e.name}</p>
                       <p className="text-xs text-foreground">{e.role}</p>
                     </div>
-                    <div className="text-right">
-                      <Badge
-                        variant="outline"
-                        className={`text-xs border-0 ${
-                          e.criticalityScore >= 9
-                            ? "bg-red-500/10 text-red-400"
-                            : "bg-orange-500/10 text-orange-400"
-                        }`}
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      <div className="text-right">
+                        <Badge
+                          variant="outline"
+                          className={`text-xs border-0 ${
+                            e.criticalityScore >= 9
+                              ? "bg-red-500/10 text-red-400"
+                              : "bg-orange-500/10 text-orange-400"
+                          }`}
+                        >
+                          {e.criticalityScore}/10
+                        </Badge>
+                        {!e.backupPerson && (
+                          <p className="text-xs text-red-400 mt-0.5">No backup</p>
+                        )}
+                      </div>
+                      <button
+                        className="text-xs text-indigo-400 hover:text-indigo-300 font-medium px-1.5 py-0.5 rounded hover:bg-indigo-500/10 transition-colors"
+                        onClick={() => setRiskSheet({ id: e.id, title: e.name, status: e.status ?? "active", riskType: "employee", subtitle: `${e.role} · Criticality ${e.criticalityScore}/10` })}
                       >
-                        {e.criticalityScore}/10 critical
-                      </Badge>
-                      {!e.backupPerson && (
-                        <p className="text-xs text-red-400 mt-0.5">No backup</p>
-                      )}
+                        Update
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -344,6 +372,23 @@ export default function Home() {
           </div>
         )}
       </div>
+
+      {riskSheet && (
+        <RiskUpdateSheet
+          open={!!riskSheet}
+          onClose={() => setRiskSheet(null)}
+          riskType={riskSheet.riskType}
+          id={riskSheet.id}
+          title={riskSheet.title}
+          subtitle={riskSheet.subtitle}
+          currentStatus={riskSheet.status}
+          onUpdated={() => {
+            if (riskSheet.riskType === "blocker") utils.blockers.getOpen.invalidate();
+            else if (riskSheet.riskType === "client") utils.clients.getAll.invalidate();
+            else utils.employees.getAll.invalidate();
+          }}
+        />
+      )}
 
       {/* Quick actions */}
       <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-3">

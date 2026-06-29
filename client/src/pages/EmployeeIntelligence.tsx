@@ -4,8 +4,9 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, AlertTriangle, Shield, User, TrendingUp, UserCheck } from "lucide-react";
+import { Loader2, Search, AlertTriangle, Shield, User, TrendingUp, UserCheck, Zap } from "lucide-react";
 import { toast } from "sonner";
+import RiskUpdateSheet from "@/components/RiskUpdateSheet";
 
 function getCriticalityColor(score: number) {
   if (score >= 8) return "bg-red-100 text-destructive border-destructive/30";
@@ -29,6 +30,7 @@ function getStatusBadge(status: string) {
 export default function EmployeeIntelligence() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
+  const [riskSheet, setRiskSheet] = useState<{ id: number; name: string; role: string; status: string; criticalityScore: number } | null>(null);
 
   const { data: employees, isLoading } = trpc.employees.getAll.useQuery();
   const upsertEmployee = trpc.employees.upsert.useMutation({
@@ -149,6 +151,17 @@ export default function EmployeeIntelligence() {
                       No backup assigned
                     </div>
                   )}
+                  {(emp.criticalityScore >= 7 || emp.status === "at_risk") && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 w-full h-7 text-xs gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 bg-transparent"
+                      onClick={(e) => { e.stopPropagation(); setRiskSheet({ id: emp.id, name: emp.name, role: emp.role, status: emp.status, criticalityScore: emp.criticalityScore }); }}
+                    >
+                      <Zap className="w-3 h-3" />
+                      Update Risk
+                    </Button>
+                  )}
                 </Card>
               ))}
             </div>
@@ -248,6 +261,13 @@ export default function EmployeeIntelligence() {
                   </div>
                 </div>
               )}
+              <Button
+                className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={() => setRiskSheet({ id: selectedEmployee.id, name: selectedEmployee.name, role: selectedEmployee.role, status: selectedEmployee.status, criticalityScore: selectedEmployee.criticalityScore })}
+              >
+                <Zap className="w-4 h-4" />
+                Update Risk Status
+              </Button>
             </Card>
           ) : (
             <Card className="p-12 text-center text-foreground">
@@ -257,6 +277,17 @@ export default function EmployeeIntelligence() {
           )}
         </div>
       </div>
+      {riskSheet && (
+        <RiskUpdateSheet
+          open={!!riskSheet}
+          onClose={() => setRiskSheet(null)}
+          riskType="employee"
+          id={riskSheet.id}
+          title={riskSheet.name}
+          subtitle={`${riskSheet.role} · Criticality ${riskSheet.criticalityScore}/10`}
+          currentStatus={riskSheet.status}
+        />
+      )}
     </div>
   );
 }

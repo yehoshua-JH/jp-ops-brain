@@ -2,8 +2,10 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, AlertTriangle, TrendingUp, Users, DollarSign, Building2 } from "lucide-react";
+import { Loader2, Search, AlertTriangle, TrendingUp, Users, DollarSign, Building2, Zap } from "lucide-react";
+import RiskUpdateSheet from "@/components/RiskUpdateSheet";
 
 function getHealthColor(score: number) {
   if (score >= 70) return "text-green-600";
@@ -34,6 +36,7 @@ function tryParse(str: string | null | undefined): string[] {
 export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
+  const [riskSheet, setRiskSheet] = useState<{ id: number; name: string; status: string; healthScore: number } | null>(null);
 
   const { data: clients, isLoading } = trpc.clients.getAll.useQuery();
 
@@ -142,6 +145,17 @@ export default function ClientsPage() {
                       {tryParse(client.riskFlags).length} risk flag(s)
                     </div>
                   )}
+                  {(client.status === "at_risk" || client.healthScore < 60) && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="mt-2 w-full h-7 text-xs gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 bg-transparent"
+                      onClick={(e) => { e.stopPropagation(); setRiskSheet({ id: client.id, name: client.name, status: client.status, healthScore: client.healthScore }); }}
+                    >
+                      <Zap className="w-3 h-3" />
+                      Update Risk
+                    </Button>
+                  )}
                 </Card>
               ))}
             </div>
@@ -229,6 +243,13 @@ export default function ClientsPage() {
                   </div>
                 </div>
               )}
+              <Button
+                className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                onClick={() => setRiskSheet({ id: selectedClient.id, name: selectedClient.name, status: selectedClient.status, healthScore: selectedClient.healthScore })}
+              >
+                <Zap className="w-4 h-4" />
+                Update Risk Status
+              </Button>
             </Card>
           ) : (
             <Card className="p-12 text-center text-foreground">
@@ -238,6 +259,17 @@ export default function ClientsPage() {
           )}
         </div>
       </div>
+      {riskSheet && (
+        <RiskUpdateSheet
+          open={!!riskSheet}
+          onClose={() => setRiskSheet(null)}
+          riskType="client"
+          id={riskSheet.id}
+          title={riskSheet.name}
+          subtitle={`Health: ${riskSheet.healthScore}%`}
+          currentStatus={riskSheet.status}
+        />
+      )}
     </div>
   );
 }

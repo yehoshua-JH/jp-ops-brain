@@ -120,6 +120,18 @@ const blockersRouter = router({
       await db.resolveBlocker(input.id, input.resolutionNote);
       return { success: true };
     }),
+  updateNote: protectedProcedure
+    .input(z.object({ id: z.number(), note: z.string() }))
+    .mutation(async ({ input }) => {
+      await db.updateBlockerNote(input.id, input.note);
+      return { success: true };
+    }),
+  escalate: protectedProcedure
+    .input(z.object({ id: z.number(), note: z.string().optional() }))
+    .mutation(async ({ input }) => {
+      await db.escalateBlocker(input.id, input.note);
+      return { success: true };
+    }),
 });
 
 // ─── Domains ──────────────────────────────────────────────────────────────────
@@ -345,15 +357,26 @@ const employeesRouter = router({
       notes: z.string().optional(),
     }))
     .mutation(async ({ input }) => {
-      await db.upsertEmployee({
+            await db.upsertEmployee({
         ...input,
         processesOwned: input.processesOwned ? JSON.stringify(input.processesOwned) : undefined,
         skills: input.skills ? JSON.stringify(input.skills) : undefined,
       });
       return { success: true };
     }),
+  updateRisk: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      status: z.enum(["active", "inactive", "at_risk"]).optional(),
+      criticalityScore: z.number().min(1).max(10).optional(),
+      notes: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...rest } = input;
+      await db.updateEmployeeRisk(id, rest);
+      return { success: true };
+    }),
 });
-
 // ─── Clients ──────────────────────────────────────────────────────────────────
 const clientsRouter = router({
   getAll: protectedProcedure.query(async () => {
@@ -381,6 +404,22 @@ const clientsRouter = router({
         ...input,
         riskFlags: input.riskFlags ? JSON.stringify(input.riskFlags) : undefined,
         assignedTeam: input.assignedTeam ? JSON.stringify(input.assignedTeam) : undefined,
+      });
+      return { success: true };
+    }),
+  updateRisk: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      status: z.enum(["active", "at_risk", "churned", "prospect"]).optional(),
+      healthScore: z.number().min(0).max(100).optional(),
+      notes: z.string().optional(),
+      riskFlags: z.array(z.string()).optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, riskFlags, ...rest } = input;
+      await db.updateClientRisk(id, {
+        ...rest,
+        riskFlags: riskFlags ? JSON.stringify(riskFlags) : undefined,
       });
       return { success: true };
     }),
