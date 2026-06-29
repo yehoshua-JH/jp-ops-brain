@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import multer from "multer";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -9,6 +10,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { initializeDatabase } from "../init";
+import { storagePut, storageGetSignedUrl } from "../storage";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -40,6 +42,32 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // ── Audio upload endpoint (used by Voice Assistant before transcription) ──────
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 16 * 1024 * 1024 },
+  });
+  app.post("/api/upload-audio", upload.single("file"), async (req, res) => {
+    try {
+      if (!req.file) {
+        res.status(400).json({ error: "No file uploaded" });
+        return;
+      }
+      const ext = req.file.mimetype?.includes("mp4") ? "mp4"
+        : req.file.mimetype?.includes("ogg") ? "ogg"
+        : req.file.mimetype?.includes("wav") ? "wav"
+        : "webm";
+      const key = `voice-recordings/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { key: storedKey } = await storagePut(key, req.file.buffer, req.file.mimetype || "audio/webm");
+      // Get a signed URL so the transcription service can fetch the audio directly from S3
+      const signedUrl = await storageGetSignedUrl(storedKey);
+      res.json({ url: signedUrl, key: storedKey });
+    } catch (err) {
+      console.error("[Upload] Error:", err);
+      res.status(500).json({ error: "Upload failed" });
+    }
+  });
 
   // ── OpenAI TTS-1-HD endpoint ──────────────────────────────────────────────────
   app.post("/api/tts", async (req, res) => {
