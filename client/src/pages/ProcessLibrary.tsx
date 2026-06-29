@@ -53,7 +53,7 @@ function AutomationPip({ level }: { level: string }) {
   };
   const { color, label } = map[level] ?? map.none;
   return (
-    <span className="flex items-center gap-1 text-xs text-foreground/80">
+    <span className="flex items-center gap-1 text-xs text-foreground">
       <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
       {label} automation
     </span>
@@ -123,7 +123,7 @@ export default function ProcessLibrary() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/80" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
       </div>
     );
   }
@@ -146,14 +146,14 @@ export default function ProcessLibrary() {
         <div className="p-4 border-b space-y-3">
           <div>
             <h1 className="text-lg font-bold">Process Library</h1>
-            <p className="text-xs text-foreground/80">{totalProcesses} SOPs documented</p>
+            <p className="text-xs text-foreground">{totalProcesses} SOPs documented</p>
           </div>
 
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="bg-muted rounded p-2">
               <div className="text-lg font-bold">{totalProcesses}</div>
-              <div className="text-[10px] text-foreground/80">Total</div>
+              <div className="text-[10px] text-foreground">Total</div>
             </div>
             <div className="bg-destructive/10 rounded p-2">
               <div className="text-lg font-bold text-red-600">{undocumented}</div>
@@ -167,7 +167,7 @@ export default function ProcessLibrary() {
 
           {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground/80" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-foreground" />
             <Input
               placeholder="Search processes..."
               value={search}
@@ -200,7 +200,7 @@ export default function ProcessLibrary() {
         <div className="flex-1 overflow-y-auto p-2 space-y-4">
           {Object.entries(grouped).map(([cat, procs]) => (
             <div key={cat}>
-              <div className="text-[10px] font-semibold text-foreground/80 uppercase tracking-wider px-2 py-1">
+              <div className="text-[10px] font-semibold text-foreground uppercase tracking-wider px-2 py-1">
                 {cat}
               </div>
               <div className="space-y-1">
@@ -222,7 +222,7 @@ export default function ProcessLibrary() {
                       <DocBar pct={proc.documentationPct} />
                     </div>
                     <div className="flex items-center gap-2 mt-1">
-                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-card/20 text-foreground border-border" : (STATUS_STYLES[proc.status] ?? "bg-muted text-foreground/80")}`}>
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-card/20 text-foreground border-border" : (STATUS_STYLES[proc.status] ?? "bg-muted text-foreground")}`}>
                         {proc.status.replace("_", " ")}
                       </span>
                       {proc.automationOpportunity === "high" && (
@@ -248,12 +248,12 @@ export default function ProcessLibrary() {
             <div className={`rounded-xl border p-5 ${CATEGORY_COLORS[selected.category] ?? "bg-card border-border"}`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <div className="text-xs font-semibold text-foreground/80 uppercase tracking-wider mb-1">
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-1">
                     {selected.category}
                   </div>
                   <h2 className="text-2xl font-bold leading-tight">{selected.name}</h2>
                   {selected.description && (
-                    <p className="mt-2 text-sm text-foreground/80 leading-relaxed">
+                    <p className="mt-2 text-sm text-foreground leading-relaxed">
                       {selected.description}
                     </p>
                   )}
@@ -266,7 +266,7 @@ export default function ProcessLibrary() {
               {/* Meta row */}
               <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <div className="bg-card/70 rounded-lg p-3">
-                  <div className="text-[10px] text-foreground/80 uppercase font-semibold mb-1">Documentation</div>
+                  <div className="text-[10px] text-foreground uppercase font-semibold mb-1">Documentation</div>
                   <div className={`text-xl font-bold ${selected.documentationPct >= 80 ? "text-emerald-600" : selected.documentationPct >= 50 ? "text-amber-600" : "text-red-500"}`}>
                     {selected.documentationPct}%
                   </div>
@@ -278,23 +278,23 @@ export default function ProcessLibrary() {
                   </div>
                 </div>
                 <div className="bg-card/70 rounded-lg p-3">
-                  <div className="text-[10px] text-foreground/80 uppercase font-semibold mb-1">Automation</div>
-                  <div className={`text-xl font-bold capitalize ${selected.automationOpportunity === "high" ? "text-blue-600" : selected.automationOpportunity === "medium" ? "text-purple-600" : "text-foreground/80"}`}>
+                  <div className="text-[10px] text-foreground uppercase font-semibold mb-1">Automation</div>
+                  <div className={`text-xl font-bold capitalize ${selected.automationOpportunity === "high" ? "text-blue-600" : selected.automationOpportunity === "medium" ? "text-purple-600" : "text-foreground"}`}>
                     {selected.automationOpportunity}
                   </div>
-                  <div className="text-[10px] text-foreground/80 mt-1">opportunity</div>
+                  <div className="text-[10px] text-foreground mt-1">opportunity</div>
                 </div>
                 <div className="bg-card/70 rounded-lg p-3">
-                  <div className="text-[10px] text-foreground/80 uppercase font-semibold mb-1">Owner</div>
+                  <div className="text-[10px] text-foreground uppercase font-semibold mb-1">Owner</div>
                   <div className="flex items-center gap-1 mt-1">
-                    <User className="w-3.5 h-3.5 text-foreground/80" />
+                    <User className="w-3.5 h-3.5 text-foreground" />
                     <span className="text-sm font-medium truncate">{selected.owner ?? "Unassigned"}</span>
                   </div>
                 </div>
                 <div className="bg-card/70 rounded-lg p-3">
-                  <div className="text-[10px] text-foreground/80 uppercase font-semibold mb-1">Backup</div>
+                  <div className="text-[10px] text-foreground uppercase font-semibold mb-1">Backup</div>
                   <div className="flex items-center gap-1 mt-1">
-                    <Shield className="w-3.5 h-3.5 text-foreground/80" />
+                    <Shield className="w-3.5 h-3.5 text-foreground" />
                     <span className="text-sm font-medium truncate">{selected.backupOwner ?? "None"}</span>
                   </div>
                 </div>
@@ -307,7 +307,7 @@ export default function ProcessLibrary() {
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                   <h3 className="font-semibold text-sm">Process Steps</h3>
-                  <span className="text-xs text-foreground/80">({regularSteps.length} steps)</span>
+                  <span className="text-xs text-foreground">({regularSteps.length} steps)</span>
                 </div>
                 <div className="space-y-0">
                   {regularSteps.map((step, i) => {
@@ -319,15 +319,15 @@ export default function ProcessLibrary() {
                       const [num, owner, action, ...rest] = parts;
                       return (
                         <div key={i} className={`flex gap-3 py-2.5 px-3 rounded-lg ${i % 2 === 0 ? "bg-muted/40" : ""}`}>
-                          <span className="shrink-0 w-8 text-xs font-mono font-semibold text-foreground/80 pt-0.5">{num}</span>
+                          <span className="shrink-0 w-8 text-xs font-mono font-semibold text-foreground pt-0.5">{num}</span>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm">{action}</div>
                             {rest.length > 0 && (
-                              <div className="text-xs text-foreground/80 mt-0.5">{rest.join(" · ")}</div>
+                              <div className="text-xs text-foreground mt-0.5">{rest.join(" · ")}</div>
                             )}
                           </div>
                           {owner && (
-                            <span className="shrink-0 text-[10px] bg-muted px-1.5 py-0.5 rounded text-foreground/80 self-start mt-0.5">
+                            <span className="shrink-0 text-[10px] bg-muted px-1.5 py-0.5 rounded text-foreground self-start mt-0.5">
                               {owner}
                             </span>
                           )}
@@ -451,7 +451,7 @@ export default function ProcessLibrary() {
 
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full py-20 text-center text-foreground/80">
+          <div className="flex flex-col items-center justify-center h-full py-20 text-center text-foreground">
             <Workflow className="w-14 h-14 mb-4 opacity-20" />
             <p className="font-medium">Select a process to view its SOP</p>
             <p className="text-sm mt-1 opacity-70">Steps, gaps, lessons learned, and automation opportunities</p>

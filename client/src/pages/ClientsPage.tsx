@@ -52,7 +52,7 @@ export default function ClientsPage() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/80" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
       </div>
     );
   }
@@ -61,7 +61,7 @@ export default function ClientsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Client Intelligence</h1>
-        <p className="text-foreground/80 mt-2">
+        <p className="text-foreground mt-2">
           Monitor client health, risk flags, and team assignments across all engagements.
         </p>
       </div>
@@ -73,7 +73,7 @@ export default function ClientsPage() {
             <Building2 className="w-8 h-8 text-blue-600" />
             <div>
               <div className="text-2xl font-bold">{activeCount}</div>
-              <div className="text-sm text-foreground/80">Active clients</div>
+              <div className="text-sm text-foreground">Active clients</div>
             </div>
           </div>
         </Card>
@@ -91,7 +91,7 @@ export default function ClientsPage() {
             <TrendingUp className="w-8 h-8 text-green-600" />
             <div>
               <div className={`text-2xl font-bold ${getHealthColor(avgHealth)}`}>{avgHealth}%</div>
-              <div className="text-sm text-foreground/80">Avg health score</div>
+              <div className="text-sm text-foreground">Avg health score</div>
             </div>
           </div>
         </Card>
@@ -101,7 +101,7 @@ export default function ClientsPage() {
         {/* Client List */}
         <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/80" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground" />
             <Input
               placeholder="Search clients..."
               value={search}
@@ -111,7 +111,7 @@ export default function ClientsPage() {
           </div>
 
           {filtered.length === 0 ? (
-            <Card className="p-6 text-center text-foreground/80">
+            <Card className="p-6 text-center text-foreground">
               No clients found.
             </Card>
           ) : (
@@ -133,7 +133,7 @@ export default function ClientsPage() {
                       <div className={`text-xl font-bold ${getHealthColor(client.healthScore)}`}>
                         {client.healthScore}
                       </div>
-                      <div className="text-xs text-foreground/80">health</div>
+                      <div className="text-xs text-foreground">health</div>
                     </div>
                   </div>
                   {tryParse(client.riskFlags).length > 0 && (
@@ -156,7 +156,7 @@ export default function ClientsPage() {
                 <div>
                   <h2 className="text-2xl font-bold">{selectedClient.name}</h2>
                   {selectedClient.startDate && (
-                    <p className="text-sm text-foreground/80">
+                    <p className="text-sm text-foreground">
                       Client since {new Date(selectedClient.startDate).toLocaleDateString()}
                     </p>
                   )}
@@ -167,24 +167,24 @@ export default function ClientsPage() {
               {/* Health & Revenue */}
               <div className="grid grid-cols-2 gap-4">
                 <div className={`rounded-lg p-4 border ${getHealthBg(selectedClient.healthScore)}`}>
-                  <div className="text-sm text-foreground/80 mb-1">Health Score</div>
+                  <div className="text-sm text-foreground mb-1">Health Score</div>
                   <div className={`text-3xl font-bold ${getHealthColor(selectedClient.healthScore)}`}>
                     {selectedClient.healthScore}/100
                   </div>
-                  <div className="text-xs text-foreground/80 mt-1">
+                  <div className="text-xs text-foreground mt-1">
                     {selectedClient.healthScore >= 70 ? "Healthy relationship" :
                      selectedClient.healthScore >= 40 ? "Needs attention" :
                      "Critical — immediate action required"}
                   </div>
                 </div>
                 <div className="bg-muted rounded-lg p-4">
-                  <div className="text-sm text-foreground/80 mb-1">Monthly Revenue</div>
+                  <div className="text-sm text-foreground mb-1">Monthly Revenue</div>
                   <div className="text-3xl font-bold">
                     {selectedClient.monthlyRevenue
                       ? `$${Number(selectedClient.monthlyRevenue).toLocaleString()}`
                       : "—"}
                   </div>
-                  <div className="text-xs text-foreground/80 mt-1">
+                  <div className="text-xs text-foreground mt-1">
                     Team size: {selectedClient.teamSize} FTE
                   </div>
                 </div>
@@ -231,7 +231,7 @@ export default function ClientsPage() {
               )}
             </Card>
           ) : (
-            <Card className="p-12 text-center text-foreground/80">
+            <Card className="p-12 text-center text-foreground">
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-30" />
               <p>Select a client to view their intelligence profile</p>
             </Card>

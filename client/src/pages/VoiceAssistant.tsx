@@ -254,7 +254,7 @@ export default function VoiceAssistant() {
           </div>
           <div>
             <h1 className="text-base font-semibold text-foreground">Ops Brain Assistant</h1>
-            <p className="text-xs text-foreground/60">Voice-first · Powered by all your operational data</p>
+            <p className="text-xs text-foreground">Voice-first · Powered by all your operational data</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -267,7 +267,7 @@ export default function VoiceAssistant() {
                 ? "bg-yellow-500/20 text-yellow-400"
                 : recordingState === "speaking"
                 ? "bg-emerald-500/20 text-emerald-400"
-                : "bg-muted/30 text-foreground/60"
+                : "bg-muted/30 text-foreground"
             }`}
           >
             {recordingState === "recording"
@@ -281,7 +281,7 @@ export default function VoiceAssistant() {
           <Button
             variant="ghost"
             size="icon"
-            className="w-8 h-8 text-foreground/60 hover:text-foreground"
+            className="w-8 h-8 text-foreground hover:text-foreground"
             onClick={() => {
               setIsMuted((m) => !m);
               if (!isMuted) window.speechSynthesis?.cancel();
@@ -308,16 +308,16 @@ export default function VoiceAssistant() {
               className={`max-w-[75%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
                 msg.role === "user"
                   ? "bg-indigo-600 !text-white rounded-tr-sm"
-                  : "bg-card/8 text-foreground/90 border border-border rounded-tl-sm"
+                  : "bg-card/8 text-foreground border border-border rounded-tl-sm"
               }`}
             >
               <p className="whitespace-pre-wrap">{msg.content}</p>
               {msg.source && (
-                <p className="text-xs text-foreground/30 mt-2 border-t border-border pt-2">
+                <p className="text-xs text-foreground mt-2 border-t border-border pt-2">
                   Source: {msg.source}
                 </p>
               )}
-              <p className="text-xs text-foreground/25 mt-1">
+              <p className="text-xs text-foreground mt-1">
                 {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </p>
             </div>
@@ -328,7 +328,7 @@ export default function VoiceAssistant() {
             <div className="w-8 h-8 rounded-lg bg-indigo-600/30 border border-indigo-500/30 flex items-center justify-center flex-shrink-0">
               <Loader2 className="w-4 h-4 text-indigo-400 animate-spin" />
             </div>
-            <div className="bg-card/8 border border-border rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-foreground/60">
+            <div className="bg-card/8 border border-border rounded-2xl rounded-tl-sm px-4 py-3 text-sm text-foreground">
               {uploadProgress ?? "Searching operational data..."}
             </div>
           </div>
@@ -339,7 +339,7 @@ export default function VoiceAssistant() {
       {/* Suggested questions */}
       {messages.length <= 2 && (
         <div className="px-6 pb-2">
-          <p className="text-xs text-foreground/30 mb-2">Try asking:</p>
+          <p className="text-xs text-foreground mb-2">Try asking:</p>
           <div className="flex flex-wrap gap-2">
             {[
               "What are our top open issues?",
@@ -352,7 +352,7 @@ export default function VoiceAssistant() {
               <button
                 key={q}
                 onClick={() => sendTextToAI(q)}
-                className="text-xs bg-muted/30 hover:bg-card/10 border border-border rounded-full px-3 py-1.5 text-foreground/70 hover:text-foreground/80 transition-colors"
+                className="text-xs bg-muted/30 hover:bg-card/10 border border-border rounded-full px-3 py-1.5 text-foreground hover:text-foreground transition-colors"
               >
                 {q}
               </button>
@@ -366,8 +366,8 @@ export default function VoiceAssistant() {
         className="mx-6 mb-3 border border-dashed border-border rounded-xl px-4 py-3 text-center cursor-pointer hover:border-indigo-500/40 hover:bg-indigo-500/5 transition-colors"
         onClick={() => fileInputRef.current?.click()}
       >
-        <Upload className="w-4 h-4 text-foreground/30 mx-auto mb-1" />
-        <p className="text-xs text-foreground/30">Drop a recording here or click to upload · mp3, m4a, webm, wav · max 16MB</p>
+        <Upload className="w-4 h-4 text-foreground mx-auto mb-1" />
+        <p className="text-xs text-foreground">Drop a recording here or click to upload · mp3, m4a, webm, wav · max 16MB</p>
         <input
           ref={fileInputRef}
           type="file"
@@ -397,7 +397,7 @@ export default function VoiceAssistant() {
             <Mic className="w-8 h-8 text-foreground" />
           )}
         </button>
-        <p className="text-xs text-foreground/30">
+        <p className="text-xs text-foreground">
           {recordingState === "recording"
             ? "Release to send"
             : recordingState === "processing"

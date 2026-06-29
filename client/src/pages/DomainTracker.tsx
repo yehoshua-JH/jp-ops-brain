@@ -28,7 +28,7 @@ export default function DomainTracker() {
   if (listDomains.isLoading || listSessions.isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 animate-spin text-foreground/80" />
+        <Loader2 className="w-8 h-8 animate-spin text-foreground" />
       </div>
     );
   }
@@ -38,7 +38,7 @@ export default function DomainTracker() {
     : listDomains.data?.[0];
 
   if (!domain) {
-    return <div className="text-center py-12 text-foreground/80">No domains found</div>;
+    return <div className="text-center py-12 text-foreground">No domains found</div>;
   }
 
   function tryParse(str: string | null | undefined): any[] {
@@ -85,7 +85,7 @@ export default function DomainTracker() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Domain Tracker</h1>
-        <p className="text-foreground/80 mt-2">
+        <p className="text-foreground mt-2">
           Track maturity progression and all key points, blockers, and decisions per domain.
         </p>
       </div>
@@ -113,7 +113,7 @@ export default function DomainTracker() {
           {/* Header */}
           <div>
             <h2 className="text-2xl font-bold">{domain.name}</h2>
-            <p className="text-foreground/80 mt-2">Domain: {domain.tag}</p>
+            <p className="text-foreground mt-2">Domain: {domain.tag}</p>
           </div>
 
           {/* Ideal End State */}
@@ -139,7 +139,7 @@ export default function DomainTracker() {
                         <Badge className={MATURITY_COLORS[entry.maturity] || ""}>
                           {entry.maturity}
                         </Badge>
-                        <span className="text-sm text-foreground/80">{entry.change}</span>
+                        <span className="text-sm text-foreground">{entry.change}</span>
                       </div>
                     </div>
                   </div>
@@ -189,7 +189,7 @@ export default function DomainTracker() {
           )}
 
           {maturityHistory.length === 0 && keyPoints.length === 0 && blockers.length === 0 && (
-            <div className="text-center py-8 text-foreground/80">
+            <div className="text-center py-8 text-foreground">
               No data yet for this domain. Process meetings to populate domain tracking.
             </div>
           )}
