@@ -1,257 +1,462 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Workflow, AlertTriangle, CheckCircle, Zap, FileText } from "lucide-react";
+import {
+  Loader2, Search, Workflow, AlertTriangle, Zap, FileText,
+  ChevronRight, User, Shield, CheckCircle2, AlertCircle, BookOpen, Lightbulb
+} from "lucide-react";
 
-function getDocBadge(pct: number) {
-  if (pct >= 80) return <Badge className="bg-green-100 text-green-800">{pct}% documented</Badge>;
-  if (pct >= 40) return <Badge className="bg-yellow-100 text-yellow-800">{pct}% documented</Badge>;
-  return <Badge className="bg-red-100 text-red-800">{pct}% documented</Badge>;
+// Parse JSON steps string into array
+function parseSteps(raw: string | null | undefined): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) return parsed.map(String);
+  } catch {
+    // fallback: split by newlines
+    return raw.split("\n").filter(Boolean);
+  }
+  return [];
 }
 
-function getAutomationBadge(score: number) {
-  if (score >= 70) return <Badge className="bg-blue-100 text-blue-800">High automation potential</Badge>;
-  if (score >= 40) return <Badge className="bg-purple-100 text-purple-800">Medium potential</Badge>;
-  return <Badge className="bg-gray-100 text-gray-800">Low potential</Badge>;
+// Classify each step line
+function classifyStep(step: string): "gap" | "lesson" | "policy" | "example" | "future" | "step" {
+  const s = step.toUpperCase();
+  if (s.startsWith("GAP:")) return "gap";
+  if (s.startsWith("LESSON LEARNED") || s.startsWith("LESSON:")) return "lesson";
+  if (s.startsWith("POLICY:")) return "policy";
+  if (s.startsWith("EXAMPLE") || s.startsWith("EXAMPLE:")) return "example";
+  if (s.startsWith("FUTURE:")) return "future";
+  return "step";
 }
 
-function getStatusBadge(status: string) {
-  const map: Record<string, string> = {
-    active: "bg-green-100 text-green-800",
-    draft: "bg-yellow-100 text-yellow-800",
-    needs_update: "bg-red-100 text-red-800",
-    archived: "bg-gray-100 text-gray-800",
+function DocBar({ pct }: { pct: number }) {
+  const color = pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-400";
+  const text = pct >= 80 ? "text-emerald-600" : pct >= 50 ? "text-amber-600" : "text-red-500";
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={`text-xs font-semibold tabular-nums ${text}`}>{pct}%</span>
+    </div>
+  );
+}
+
+function AutomationPip({ level }: { level: string }) {
+  const map: Record<string, { color: string; label: string }> = {
+    high:   { color: "bg-blue-500", label: "High" },
+    medium: { color: "bg-purple-400", label: "Med" },
+    low:    { color: "bg-gray-300", label: "Low" },
+    none:   { color: "bg-gray-200", label: "None" },
   };
-  return <Badge className={map[status] ?? "bg-gray-100 text-gray-800"}>{status.replace("_", " ")}</Badge>;
+  const { color, label } = map[level] ?? map.none;
+  return (
+    <span className="flex items-center gap-1 text-xs text-muted-foreground">
+      <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
+      {label} automation
+    </span>
+  );
 }
+
+const STATUS_STYLES: Record<string, string> = {
+  documented:    "bg-emerald-100 text-emerald-800 border-emerald-200",
+  partial:       "bg-amber-100 text-amber-800 border-amber-200",
+  undocumented:  "bg-red-100 text-red-800 border-red-200",
+  needs_update:  "bg-orange-100 text-orange-800 border-orange-200",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Sales & BD":          "bg-sky-50 border-sky-200",
+  "SOW & Contracts":     "bg-violet-50 border-violet-200",
+  "HR & Onboarding":     "bg-teal-50 border-teal-200",
+  "Finance & Invoicing": "bg-amber-50 border-amber-200",
+  "Time Tracking":       "bg-orange-50 border-orange-200",
+  "Client Management":   "bg-pink-50 border-pink-200",
+  "KPI & Performance":   "bg-indigo-50 border-indigo-200",
+  "Ops Brain":           "bg-purple-50 border-purple-200",
+};
 
 export default function ProcessLibrary() {
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<number | null>(null);
-  const [filterDomain, setFilterDomain] = useState<string>("all");
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [filterCategory, setFilterCategory] = useState<string>("all");
 
   const { data: processes, isLoading } = trpc.processes.getAll.useQuery();
-  const { data: domains } = trpc.domains.getAll.useQuery();
 
-  const filtered = (processes ?? []).filter((p) => {
-    const matchSearch = !search ||
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.owner ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchDomain = filterDomain === "all" || (p.domainTag ?? "") === filterDomain;
-    return matchSearch && matchDomain;
-  });
+  const categories = useMemo(() => {
+    const cats = Array.from(new Set((processes ?? []).map((p) => p.category)));
+    return cats.sort();
+  }, [processes]);
 
-  const selectedProcess = selected ? processes?.find((p) => p.id === selected) : null;
+  const filtered = useMemo(() => {
+    return (processes ?? []).filter((p) => {
+      const matchSearch =
+        !search ||
+        p.name.toLowerCase().includes(search.toLowerCase()) ||
+        (p.owner ?? "").toLowerCase().includes(search.toLowerCase()) ||
+        (p.category ?? "").toLowerCase().includes(search.toLowerCase());
+      const matchCat = filterCategory === "all" || p.category === filterCategory;
+      return matchSearch && matchCat;
+    });
+  }, [processes, search, filterCategory]);
+
+  const grouped = useMemo(() => {
+    const g: Record<string, typeof filtered> = {};
+    for (const p of filtered) {
+      if (!g[p.category]) g[p.category] = [];
+      g[p.category].push(p);
+    }
+    return g;
+  }, [filtered]);
+
+  const selected = useMemo(
+    () => (selectedId ? (processes ?? []).find((p) => p.id === selectedId) : null),
+    [selectedId, processes]
+  );
 
   const undocumented = (processes ?? []).filter((p) => p.documentationPct < 40).length;
-  const noOwner = (processes ?? []).filter((p) => !p.owner).length;
   const highAutomation = (processes ?? []).filter((p) => p.automationOpportunity === "high").length;
+  const totalProcesses = (processes ?? []).length;
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center py-12">
+      <div className="flex items-center justify-center py-20">
         <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
+  // Parse steps for selected process
+  const allSteps = selected ? parseSteps(selected.steps) : [];
+  const regularSteps = allSteps.filter((s) => classifyStep(s) === "step");
+  const gaps = allSteps.filter((s) => classifyStep(s) === "gap");
+  const lessons = allSteps.filter((s) => classifyStep(s) === "lesson");
+  const policies = allSteps.filter((s) => classifyStep(s) === "policy");
+  const examples = allSteps.filter((s) => classifyStep(s) === "example");
+  const future = allSteps.filter((s) => classifyStep(s) === "future");
+
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold">Process Library</h1>
-        <p className="text-muted-foreground mt-2">
-          All SOPs and workflows — track documentation, ownership, and automation readiness.
-        </p>
-      </div>
+    <div className="flex gap-0 h-full" style={{ minHeight: "calc(100vh - 80px)" }}>
 
-      {/* Summary */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="p-4 border-red-200 bg-red-50">
-          <div className="flex items-center gap-3">
-            <FileText className="w-8 h-8 text-red-600" />
-            <div>
-              <div className="text-2xl font-bold text-red-700">{undocumented}</div>
-              <div className="text-sm text-red-600">Poorly documented (&lt;40%)</div>
-            </div>
+      {/* ── LEFT PANEL: List ─────────────────────────────────────────── */}
+      <div className="w-80 shrink-0 border-r flex flex-col bg-background overflow-y-auto">
+        {/* Header */}
+        <div className="p-4 border-b space-y-3">
+          <div>
+            <h1 className="text-lg font-bold">Process Library</h1>
+            <p className="text-xs text-muted-foreground">{totalProcesses} SOPs documented</p>
           </div>
-        </Card>
-        <Card className="p-4 border-orange-200 bg-orange-50">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="w-8 h-8 text-orange-600" />
-            <div>
-              <div className="text-2xl font-bold text-orange-700">{noOwner}</div>
-              <div className="text-sm text-orange-600">No owner assigned</div>
-            </div>
-          </div>
-        </Card>
-        <Card className="p-4 border-blue-200 bg-blue-50">
-          <div className="flex items-center gap-3">
-            <Zap className="w-8 h-8 text-blue-600" />
-            <div>
-              <div className="text-2xl font-bold text-blue-700">{highAutomation}</div>
-              <div className="text-sm text-blue-600">Ready to automate</div>
-            </div>
-          </div>
-        </Card>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Process List */}
-        <div className="space-y-4">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="bg-muted rounded p-2">
+              <div className="text-lg font-bold">{totalProcesses}</div>
+              <div className="text-[10px] text-muted-foreground">Total</div>
+            </div>
+            <div className="bg-red-50 rounded p-2">
+              <div className="text-lg font-bold text-red-600">{undocumented}</div>
+              <div className="text-[10px] text-red-500">Gaps</div>
+            </div>
+            <div className="bg-blue-50 rounded p-2">
+              <div className="text-lg font-bold text-blue-600">{highAutomation}</div>
+              <div className="text-[10px] text-blue-500">Automate</div>
+            </div>
+          </div>
+
+          {/* Search */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
             <Input
               placeholder="Search processes..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9"
+              className="pl-8 h-8 text-sm"
             />
           </div>
 
-          {/* Domain Filter */}
+          {/* Category filter */}
           <div className="flex flex-wrap gap-1">
             <button
-              onClick={() => setFilterDomain("all")}
-              className={`text-xs px-2 py-1 rounded border transition-colors ${filterDomain === "all" ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+              onClick={() => setFilterCategory("all")}
+              className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${filterCategory === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
             >
               All
             </button>
-            {(domains ?? []).map((d) => (
+            {categories.map((cat) => (
               <button
-                key={d.tag}
-                onClick={() => setFilterDomain(d.tag)}
-                className={`text-xs px-2 py-1 rounded border transition-colors ${filterDomain === d.tag ? "bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}
+                key={cat}
+                onClick={() => setFilterCategory(cat)}
+                className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${filterCategory === cat ? "bg-primary text-primary-foreground border-primary" : "bg-background hover:bg-muted"}`}
               >
-                {d.tag}
+                {cat}
               </button>
             ))}
           </div>
-
-          {filtered.length === 0 ? (
-            <Card className="p-6 text-center text-muted-foreground">
-              No processes found.
-            </Card>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map((proc) => (
-                <Card
-                  key={proc.id}
-                  className={`p-4 cursor-pointer transition-all hover:shadow-md ${selected === proc.id ? "ring-2 ring-primary" : ""}`}
-                  onClick={() => setSelected(proc.id)}
-                >
-                  <div className="font-semibold text-sm truncate">{proc.name}</div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {getStatusBadge(proc.status)}
-                    {proc.domainTag && (
-                      <Badge variant="outline" className="text-xs">{proc.domainTag}</Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-muted-foreground">
-                      {proc.owner ? `Owner: ${proc.owner}` : "No owner"}
-                    </span>
-                    <span className={`text-xs font-medium ${proc.documentationPct >= 80 ? "text-green-600" : proc.documentationPct >= 40 ? "text-yellow-600" : "text-red-600"}`}>
-                      {proc.documentationPct}% docs
-                    </span>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          )}
         </div>
 
-        {/* Process Detail */}
-        <div className="lg:col-span-2">
-          {selectedProcess ? (
-            <Card className="p-6 space-y-6">
-              <div className="flex items-start justify-between">
+        {/* Process list grouped by category */}
+        <div className="flex-1 overflow-y-auto p-2 space-y-4">
+          {Object.entries(grouped).map(([cat, procs]) => (
+            <div key={cat}>
+              <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">
+                {cat}
+              </div>
+              <div className="space-y-1">
+                {procs.map((proc) => (
+                  <button
+                    key={proc.id}
+                    onClick={() => setSelectedId(proc.id)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
+                      selectedId === proc.id
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-background hover:bg-muted border-transparent hover:border-border"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-medium leading-tight">{proc.name}</span>
+                      <ChevronRight className="w-3.5 h-3.5 shrink-0 opacity-50" />
+                    </div>
+                    <div className="mt-1.5">
+                      <DocBar pct={proc.documentationPct} />
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${selectedId === proc.id ? "bg-white/20 text-white border-white/30" : (STATUS_STYLES[proc.status] ?? "bg-gray-100 text-gray-700")}`}>
+                        {proc.status.replace("_", " ")}
+                      </span>
+                      {proc.automationOpportunity === "high" && (
+                        <span className={`text-[10px] ${selectedId === proc.id ? "text-blue-200" : "text-blue-600"}`}>
+                          ⚡ automate
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── RIGHT PANEL: Detail ───────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto bg-muted/30">
+        {selected ? (
+          <div className="max-w-3xl mx-auto p-6 space-y-6">
+
+            {/* Title block */}
+            <div className={`rounded-xl border p-5 ${CATEGORY_COLORS[selected.category] ?? "bg-white border-border"}`}>
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold">{selectedProcess.name}</h2>
-                  {selectedProcess.domainTag && (
-                    <Badge variant="outline" className="mt-1">{selectedProcess.domainTag}</Badge>
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    {selected.category}
+                  </div>
+                  <h2 className="text-2xl font-bold leading-tight">{selected.name}</h2>
+                  {selected.description && (
+                    <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                      {selected.description}
+                    </p>
                   )}
                 </div>
-                {getStatusBadge(selectedProcess.status)}
+                <Badge className={`shrink-0 border ${STATUS_STYLES[selected.status] ?? ""}`}>
+                  {selected.status.replace("_", " ")}
+                </Badge>
               </div>
 
-              {/* Documentation & Automation */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-muted rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground mb-1">Documentation</div>
-                  <div className={`text-3xl font-bold ${(selectedProcess.documentationPct ?? 0) >= 80 ? "text-green-600" : (selectedProcess.documentationPct ?? 0) >= 40 ? "text-yellow-600" : "text-red-600"}`}>
-                    {selectedProcess.documentationPct ?? 0}%
+              {/* Meta row */}
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Documentation</div>
+                  <div className={`text-xl font-bold ${selected.documentationPct >= 80 ? "text-emerald-600" : selected.documentationPct >= 50 ? "text-amber-600" : "text-red-500"}`}>
+                    {selected.documentationPct}%
                   </div>
-                  <div className="mt-2 bg-background rounded-full h-2">
+                  <div className="mt-1.5 h-1.5 bg-muted rounded-full overflow-hidden">
                     <div
-                      className={`h-2 rounded-full ${(selectedProcess.documentationPct ?? 0) >= 80 ? "bg-green-500" : (selectedProcess.documentationPct ?? 0) >= 40 ? "bg-yellow-500" : "bg-red-500"}`}
-                      style={{ width: `${selectedProcess.documentationPct ?? 0}%` }}
+                      className={`h-full rounded-full ${selected.documentationPct >= 80 ? "bg-emerald-500" : selected.documentationPct >= 50 ? "bg-amber-400" : "bg-red-400"}`}
+                      style={{ width: `${selected.documentationPct}%` }}
                     />
                   </div>
                 </div>
-                <div className="bg-muted rounded-lg p-4">
-                  <div className="text-sm text-muted-foreground mb-1">Automation Readiness</div>
-                  <div className={`text-3xl font-bold ${selectedProcess.automationOpportunity === "high" ? "text-blue-600" : "text-gray-600"}`}>
-                    {selectedProcess.automationOpportunity}
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Automation</div>
+                  <div className={`text-xl font-bold capitalize ${selected.automationOpportunity === "high" ? "text-blue-600" : selected.automationOpportunity === "medium" ? "text-purple-600" : "text-gray-500"}`}>
+                    {selected.automationOpportunity}
                   </div>
-                  <div className="mt-2">
-                    <Badge className={selectedProcess.automationOpportunity === "high" ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}>
-                      {selectedProcess.automationOpportunity} potential
-                    </Badge>
+                  <div className="text-[10px] text-muted-foreground mt-1">opportunity</div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Owner</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <User className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium truncate">{selected.owner ?? "Unassigned"}</span>
+                  </div>
+                </div>
+                <div className="bg-white/70 rounded-lg p-3">
+                  <div className="text-[10px] text-muted-foreground uppercase font-semibold mb-1">Backup</div>
+                  <div className="flex items-center gap-1 mt-1">
+                    <Shield className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span className="text-sm font-medium truncate">{selected.backupOwner ?? "None"}</span>
                   </div>
                 </div>
               </div>
+            </div>
 
-              {/* Ownership */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-semibold mb-2">Owner</h3>
-                  {selectedProcess.owner ? (
-                    <Badge variant="outline">{selectedProcess.owner}</Badge>
-                  ) : (
-                    <span className="text-sm text-red-600">⚠️ No owner assigned</span>
-                  )}
+            {/* Process Steps */}
+            {regularSteps.length > 0 && (
+              <div className="bg-white rounded-xl border p-5 space-y-1">
+                <div className="flex items-center gap-2 mb-3">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <h3 className="font-semibold text-sm">Process Steps</h3>
+                  <span className="text-xs text-muted-foreground">({regularSteps.length} steps)</span>
                 </div>
-                <div>
-                  <h3 className="font-semibold mb-2">Backup</h3>
-                  {selectedProcess.backupOwner ? (
-                    <Badge variant="outline">{selectedProcess.backupOwner}</Badge>
-                  ) : (
-                    <span className="text-sm text-orange-600">No backup assigned</span>
-                  )}
+                <div className="space-y-0">
+                  {regularSteps.map((step, i) => {
+                    // Parse "N.N | Owner | Action | ..." format
+                    const parts = step.split("|").map((s) => s.trim());
+                    const isTableFormat = parts.length >= 3 && /^\d+\.\d+$/.test(parts[0]);
+
+                    if (isTableFormat) {
+                      const [num, owner, action, ...rest] = parts;
+                      return (
+                        <div key={i} className={`flex gap-3 py-2.5 px-3 rounded-lg ${i % 2 === 0 ? "bg-muted/40" : ""}`}>
+                          <span className="shrink-0 w-8 text-xs font-mono font-semibold text-muted-foreground pt-0.5">{num}</span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm">{action}</div>
+                            {rest.length > 0 && (
+                              <div className="text-xs text-muted-foreground mt-0.5">{rest.join(" · ")}</div>
+                            )}
+                          </div>
+                          {owner && (
+                            <span className="shrink-0 text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground self-start mt-0.5">
+                              {owner}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Numbered step: "1. Do something"
+                    const numMatch = step.match(/^(\d+)\.\s+(.+)/);
+                    if (numMatch) {
+                      return (
+                        <div key={i} className={`flex gap-3 py-2.5 px-3 rounded-lg ${i % 2 === 0 ? "bg-muted/40" : ""}`}>
+                          <span className="shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">
+                            {numMatch[1]}
+                          </span>
+                          <span className="text-sm leading-relaxed">{numMatch[2]}</span>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={i} className={`py-2.5 px-3 rounded-lg text-sm ${i % 2 === 0 ? "bg-muted/40" : ""}`}>
+                        {step}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
+            )}
 
-              {/* Description */}
-              {selectedProcess.description && (
-                <div>
-                  <h3 className="font-semibold mb-2">Description</h3>
-                  <div className="bg-muted rounded p-3 text-sm whitespace-pre-wrap">
-                    {selectedProcess.description}
-                  </div>
+            {/* Policies */}
+            {policies.length > 0 && (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <BookOpen className="w-4 h-4 text-indigo-600" />
+                  <h3 className="font-semibold text-sm text-indigo-800">Policies</h3>
                 </div>
-              )}
-
-              {/* Steps */}
-              {selectedProcess.steps && (
-                <div>
-                  <h3 className="font-semibold mb-2">Process Steps</h3>
-                  <div className="bg-muted rounded p-3 text-sm whitespace-pre-wrap">
-                    {selectedProcess.steps}
-                  </div>
+                <div className="space-y-2">
+                  {policies.map((p, i) => (
+                    <div key={i} className="flex gap-2 text-sm text-indigo-900">
+                      <span className="shrink-0 text-indigo-400 mt-0.5">▸</span>
+                      <span>{p.replace(/^POLICY:\s*/i, "")}</span>
+                    </div>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
 
+            {/* Examples */}
+            {examples.length > 0 && (
+              <div className="bg-sky-50 border border-sky-200 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <FileText className="w-4 h-4 text-sky-600" />
+                  <h3 className="font-semibold text-sm text-sky-800">Real Examples</h3>
+                </div>
+                <div className="space-y-2">
+                  {examples.map((e, i) => (
+                    <div key={i} className="flex gap-2 text-sm text-sky-900">
+                      <span className="shrink-0 text-sky-400 mt-0.5">▸</span>
+                      <span>{e.replace(/^EXAMPLE[^:]*:\s*/i, "")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            </Card>
-          ) : (
-            <Card className="p-12 text-center text-muted-foreground">
-              <Workflow className="w-12 h-12 mx-auto mb-4 opacity-30" />
-              <p>Select a process to view its details</p>
-            </Card>
-          )}
-        </div>
+            {/* Future improvements */}
+            {future.length > 0 && (
+              <div className="bg-purple-50 border border-purple-200 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-4 h-4 text-purple-600" />
+                  <h3 className="font-semibold text-sm text-purple-800">Future / Automation</h3>
+                </div>
+                <div className="space-y-2">
+                  {future.map((f, i) => (
+                    <div key={i} className="flex gap-2 text-sm text-purple-900">
+                      <span className="shrink-0 text-purple-400 mt-0.5">▸</span>
+                      <span>{f.replace(/^FUTURE:\s*/i, "")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Lessons Learned */}
+            {lessons.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lightbulb className="w-4 h-4 text-amber-600" />
+                  <h3 className="font-semibold text-sm text-amber-800">Lessons Learned</h3>
+                </div>
+                <div className="space-y-2">
+                  {lessons.map((l, i) => (
+                    <div key={i} className="flex gap-2 text-sm text-amber-900">
+                      <span className="shrink-0 text-amber-500 mt-0.5">⚠</span>
+                      <span>{l.replace(/^LESSON LEARNED[^:]*:\s*/i, "").replace(/^LESSON:\s*/i, "")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Gaps */}
+            {gaps.length > 0 && (
+              <div className="bg-red-50 border border-red-200 rounded-xl p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertCircle className="w-4 h-4 text-red-500" />
+                  <h3 className="font-semibold text-sm text-red-700">Known Gaps</h3>
+                  <span className="text-xs text-red-500">({gaps.length} gaps identified)</span>
+                </div>
+                <div className="space-y-2">
+                  {gaps.map((g, i) => (
+                    <div key={i} className="flex gap-2 text-sm text-red-800">
+                      <span className="shrink-0 text-red-400 mt-0.5">✕</span>
+                      <span>{g.replace(/^GAP:\s*/i, "")}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full py-20 text-center text-muted-foreground">
+            <Workflow className="w-14 h-14 mb-4 opacity-20" />
+            <p className="font-medium">Select a process to view its SOP</p>
+            <p className="text-sm mt-1 opacity-70">Steps, gaps, lessons learned, and automation opportunities</p>
+          </div>
+        )}
       </div>
     </div>
   );
