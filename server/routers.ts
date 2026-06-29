@@ -430,6 +430,45 @@ const processesRouter = router({
   getAll: protectedProcedure.query(async () => {
     return await db.getAllProcesses();
   }),
+  gapAnalysis: protectedProcedure
+    .input(z.object({ processId: z.number() }))
+    .query(async ({ input }) => {
+      const process = await db.getProcessById(input.processId);
+      if (!process) return null;
+      const [allBlockers, allClients, allSessions] = await Promise.all([
+        db.getBlockersByStatus("open"),
+        db.getAllClients(),
+        db.getAllSessions(),
+      ]);
+      // Parse structured phases from JSON steps
+      let phases: Array<{ phase: string; owner: string; steps: string[]; automation: string }> = [];
+      try {
+        const parsed = JSON.parse(process.steps ?? "[]");
+        if (Array.isArray(parsed) && parsed[0]?.phase) phases = parsed;
+      } catch { /* flat steps */ }
+      const dataContext = [
+        `CLIENTS: ${JSON.stringify(allClients.map((c: { name: string; status: string; healthScore: number | null; notes?: string | null }) => ({ name: c.name, status: c.status, healthScore: c.healthScore, notes: (c.notes ?? "").slice(0, 200) })))}`,
+        `OPEN BLOCKERS: ${JSON.stringify(allBlockers.map((b: { description: string; domainTag: string; timesAppeared: number }) => ({ description: b.description, domainTag: b.domainTag, timesAppeared: b.timesAppeared })))}`,
+        `RECENT SESSIONS (last 6): ${JSON.stringify(allSessions.slice(0, 6).map((s: { sessionNumber: number; executiveSummary?: string | null; decisionsMade?: string | null }) => ({ sessionNumber: s.sessionNumber, exec: (s.executiveSummary ?? "").slice(0, 200), decisions: (s.decisionsMade ?? "").slice(0, 150) })))}`,
+      ].join("\n\n");
+      const processContext = phases.length > 0
+        ? `DEFINED PROCESS PHASES:\n${phases.map(p => `${p.phase} (${p.owner}):\n${p.steps.map(s => `  - ${s}`).join("\n")}\nAutomation: ${p.automation}`).join("\n\n")}`
+        : `PROCESS STEPS: ${process.steps}`;
+      const llmResp = await invokeLLM({
+        messages: [
+          { role: "system", content: "You are an operations analyst. Analyze the defined process against real operational data and return a structured gap analysis as JSON." },
+          { role: "user", content: `${processContext}\n\n${dataContext}\n\nReturn a JSON object with this exact shape:\n{\n  \"overallScore\": 0-100,\n  \"summary\": \"2-3 sentence executive summary\",\n  \"phaseAnalysis\": [{\"phase\": \"\", \"status\": \"on_track|partial|gap|unknown\", \"finding\": \"\", \"evidence\": \"\", \"recommendation\": \"\"}],\n  \"criticalGaps\": [],\n  \"positives\": []\n}` },
+        ],
+        response_format: { type: "json_object" },
+      });
+      try {
+        const rawContent = llmResp.choices[0].message.content;
+        const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
+        return { process, phases, analysis: JSON.parse(content) };
+      } catch {
+        return { process, phases, analysis: null };
+      }
+    }),
   getById: protectedProcedure
     .input(z.object({ id: z.number() }))
     .query(async ({ input }) => {
