@@ -4,7 +4,7 @@ import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { systemRouter } from "./_core/systemRouter";
 import * as db from "./db";
 import { processMeeting } from "./llmProcessing";
-import { invokeLLM } from "./_core/llm";
+// invokeLLM replaced by direct OpenAI GPT-4o for brain.ask
 import { transcribeAudio } from "./_core/voiceTranscription";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
@@ -279,11 +279,26 @@ Answer the user's question based on this data. Be specific and cite sources (e.g
           { role: "user" as const, content: input.question },
         ];
 
-        const response = await invokeLLM({
-          messages: [{ role: "system", content: systemPrompt }, ...messages],
+        const openaiRes = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4o",
+            messages: [{ role: "system", content: systemPrompt }, ...messages],
+            max_tokens: 1024,
+            temperature: 0.4,
+          }),
         });
-
-        const answer = response.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
+        if (!openaiRes.ok) {
+          const errBody = await openaiRes.text();
+          console.error("[Brain] OpenAI error:", errBody);
+          throw new Error("OpenAI API error");
+        }
+        const openaiData = await openaiRes.json() as { choices?: { message?: { content?: string } }[] };
+        const answer = openaiData.choices?.[0]?.message?.content || "I couldn't generate a response. Please try again.";
         return { success: true, answer };
       } catch (error) {
         console.error("[Brain] Ask error:", error);

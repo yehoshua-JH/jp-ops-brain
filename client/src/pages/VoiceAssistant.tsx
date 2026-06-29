@@ -2,8 +2,26 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Mic, MicOff, Upload, Loader2, Volume2, VolumeX, Brain } from "lucide-react";
+import { Mic, Square, Upload, Loader2, Volume2, VolumeX, Brain, StopCircle } from "lucide-react";
 import { toast } from "sonner";
+
+/** Strip markdown symbols before passing text to TTS */
+function cleanForSpeech(text: string): string {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, "$1")   // bold
+    .replace(/\*(.+?)\*/g, "$1")        // italic
+    .replace(/_{1,2}(.+?)_{1,2}/g, "$1") // underline/italic
+    .replace(/`{1,3}[^`]*`{1,3}/g, "")  // inline code / code blocks
+    .replace(/^#{1,6}\s+/gm, "")         // headings
+    .replace(/^>\s+/gm, "")              // blockquotes
+    .replace(/!\[.*?\]\(.*?\)/g, "")     // images
+    .replace(/\[(.+?)\]\(.*?\)/g, "$1") // links — keep label
+    .replace(/[-*+]\s+/g, "")           // list bullets
+    .replace(/^\d+\.\s+/gm, "")         // numbered lists
+    .replace(/[|\\]/g, " ")             // table pipes
+    .replace(/\n{3,}/g, "\n\n")         // excess blank lines
+    .trim();
+}
 
 type Message = {
   id: string;
@@ -28,12 +46,9 @@ export default function VoiceAssistant() {
   const [recordingState, setRecordingState] = useState<RecordingState>("idle");
   const [isMuted, setIsMuted] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<string | null>(null);
-  const [isHolding, setIsHolding] = useState(false);
-
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const synthRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -45,30 +60,59 @@ export default function VoiceAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // ── OpenAI TTS-1-HD playback ─────────────────────────────────────────────────
   const speak = useCallback(
-    (text: string) => {
-      if (isMuted || !window.speechSynthesis) return;
-      window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 1.0;
-      utterance.volume = 1.0;
-      // Prefer a natural-sounding voice
-      const voices = window.speechSynthesis.getVoices();
-      const preferred = voices.find(
-        (v) =>
-          v.name.includes("Samantha") ||
-          v.name.includes("Google US English") ||
-          v.name.includes("en-US")
-      );
-      if (preferred) utterance.voice = preferred;
-      utterance.onstart = () => setRecordingState("speaking");
-      utterance.onend = () => setRecordingState("idle");
-      synthRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+    async (text: string) => {
+      if (isMuted) return;
+      // Stop any currently playing audio
+      if (currentAudioRef.current) {
+        currentAudioRef.current.pause();
+        currentAudioRef.current = null;
+      }
+      const cleaned = cleanForSpeech(text);
+      if (!cleaned) return;
+      try {
+        setRecordingState("speaking");
+        const res = await fetch("/api/tts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: cleaned }),
+        });
+        if (!res.ok) {
+          console.warn("[TTS] Server error, skipping voice");
+          setRecordingState("idle");
+          return;
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        currentAudioRef.current = audio;
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          currentAudioRef.current = null;
+          setRecordingState("idle");
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          currentAudioRef.current = null;
+          setRecordingState("idle");
+        };
+        await audio.play();
+      } catch (err) {
+        console.error("[TTS] Playback error:", err);
+        setRecordingState("idle");
+      }
     },
     [isMuted]
   );
+
+  const stopSpeaking = useCallback(() => {
+    if (currentAudioRef.current) {
+      currentAudioRef.current.pause();
+      currentAudioRef.current = null;
+    }
+    setRecordingState("idle");
+  }, []);
 
   const addMessage = useCallback((role: "user" | "assistant", content: string, source?: string) => {
     const msg: Message = {
@@ -153,18 +197,16 @@ export default function VoiceAssistant() {
     }
   }, []);
 
-  const handleMicPointerDown = useCallback(() => {
-    setIsHolding(true);
-    holdTimerRef.current = setTimeout(() => {
+  /** Single click handler — toggles between start and stop */
+  const handleMicClick = useCallback(() => {
+    if (recordingState === "idle") {
       startRecording();
-    }, 200);
-  }, [startRecording]);
-
-  const handleMicPointerUp = useCallback(() => {
-    setIsHolding(false);
-    if (holdTimerRef.current) clearTimeout(holdTimerRef.current);
-    if (recordingState === "recording") stopRecording();
-  }, [recordingState, stopRecording]);
+    } else if (recordingState === "recording") {
+      stopRecording();
+    } else if (recordingState === "speaking") {
+      stopSpeaking();
+    }
+  }, [recordingState, startRecording, stopRecording, stopSpeaking]);
 
   // ── File upload for recordings ────────────────────────────────────────────────
   const handleFileUpload = useCallback(
@@ -219,33 +261,26 @@ export default function VoiceAssistant() {
     [addMessage, processSessionMutation, speak, transcribeMutation]
   );
 
-  const handleDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith("audio/")) handleFileUpload(file);
-      else toast.error("Please drop an audio file (mp3, m4a, webm, wav).");
-    },
-    [handleFileUpload]
-  );
-
   const micButtonColor =
     recordingState === "recording"
-      ? "bg-red-500 hover:bg-red-600 shadow-[0_0_30px_rgba(239,68,68,0.6)]"
-      : recordingState === "processing"
-      ? "bg-yellow-500 hover:bg-yellow-600"
+      ? "bg-red-500 hover:bg-red-600 shadow-lg shadow-red-500/40"
       : recordingState === "speaking"
-      ? "bg-emerald-500 hover:bg-emerald-600 shadow-[0_0_30px_rgba(16,185,129,0.5)]"
-      : isHolding
-      ? "bg-indigo-400 hover:bg-indigo-500"
-      : "bg-indigo-600 hover:bg-indigo-700 shadow-[0_0_20px_rgba(99,102,241,0.4)]";
+      ? "bg-indigo-500 hover:bg-indigo-600 shadow-lg shadow-indigo-500/40"
+      : recordingState === "processing"
+      ? "bg-muted cursor-not-allowed"
+      : "bg-indigo-600/20 hover:bg-indigo-600/40 border-2 border-indigo-500/50";
+
+  const micLabel =
+    recordingState === "recording"
+      ? "Tap to send"
+      : recordingState === "processing"
+      ? "Processing..."
+      : recordingState === "speaking"
+      ? "Tap to stop"
+      : "Tap to speak";
 
   return (
-    <div
-      className="flex flex-col h-full min-h-[720px] bg-background text-foreground"
-      onDragOver={(e) => e.preventDefault()}
-      onDrop={handleDrop}
-    >
+    <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border">
         <div className="flex items-center gap-3">
@@ -254,7 +289,7 @@ export default function VoiceAssistant() {
           </div>
           <div>
             <h1 className="text-base font-semibold text-foreground">Ops Brain Assistant</h1>
-            <p className="text-xs text-foreground">Voice-first · Powered by all your operational data</p>
+            <p className="text-xs text-foreground">Voice-first CEO assistant · GPT-4o</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -283,8 +318,8 @@ export default function VoiceAssistant() {
             size="icon"
             className="w-8 h-8 text-foreground hover:text-foreground"
             onClick={() => {
+              if (!isMuted && recordingState === "speaking") stopSpeaking();
               setIsMuted((m) => !m);
-              if (!isMuted) window.speechSynthesis?.cancel();
             }}
           >
             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
@@ -384,28 +419,21 @@ export default function VoiceAssistant() {
       <div className="flex flex-col items-center pb-6 pt-2 gap-2">
         <button
           className={`w-20 h-20 rounded-full flex items-center justify-center transition-all duration-150 active:scale-95 select-none ${micButtonColor}`}
-          onPointerDown={handleMicPointerDown}
-          onPointerUp={handleMicPointerUp}
-          onPointerLeave={handleMicPointerUp}
+          onClick={handleMicClick}
           disabled={recordingState === "processing" || !!uploadProgress}
+          aria-label={micLabel}
         >
           {recordingState === "processing" ? (
             <Loader2 className="w-8 h-8 text-foreground animate-spin" />
           ) : recordingState === "recording" ? (
-            <MicOff className="w-8 h-8 text-foreground" />
+            <Square className="w-8 h-8 text-white fill-white" />
+          ) : recordingState === "speaking" ? (
+            <StopCircle className="w-8 h-8 text-white" />
           ) : (
             <Mic className="w-8 h-8 text-foreground" />
           )}
         </button>
-        <p className="text-xs text-foreground">
-          {recordingState === "recording"
-            ? "Release to send"
-            : recordingState === "processing"
-            ? "Processing..."
-            : recordingState === "speaking"
-            ? "Speaking... tap to stop"
-            : "Hold to speak"}
-        </p>
+        <p className="text-xs text-foreground">{micLabel}</p>
       </div>
     </div>
   );

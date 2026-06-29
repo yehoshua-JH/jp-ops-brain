@@ -40,6 +40,52 @@ async function startServer() {
   app.use(express.urlencoded({ limit: "50mb", extended: true }));
   registerStorageProxy(app);
   registerOAuthRoutes(app);
+
+  // ── OpenAI TTS-1-HD endpoint ──────────────────────────────────────────────────
+  app.post("/api/tts", async (req, res) => {
+    try {
+      const { text } = req.body as { text?: string };
+      if (!text || typeof text !== "string") {
+        res.status(400).json({ error: "text is required" });
+        return;
+      }
+      const openaiRes = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "tts-1-hd",
+          input: text.slice(0, 4096),
+          voice: "nova",
+          response_format: "mp3",
+        }),
+      });
+      if (!openaiRes.ok) {
+        const errText = await openaiRes.text();
+        console.error("[TTS] OpenAI error:", errText);
+        res.status(502).json({ error: "TTS service unavailable" });
+        return;
+      }
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-store");
+      const reader = openaiRes.body?.getReader();
+      if (!reader) { res.end(); return; }
+      const pump = async () => {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) { res.end(); break; }
+          res.write(Buffer.from(value));
+        }
+      };
+      await pump();
+    } catch (err) {
+      console.error("[TTS] Unexpected error:", err);
+      if (!res.headersSent) res.status(500).json({ error: "Internal server error" });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",
