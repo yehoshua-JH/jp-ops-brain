@@ -1,0 +1,1 @@
+ALTER TABLE `processes` ADD `diagramUrl` varchar(500);

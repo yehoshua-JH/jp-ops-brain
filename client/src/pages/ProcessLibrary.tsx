@@ -6,7 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   Loader2, Search, Workflow, AlertTriangle, Zap, FileText,
   ChevronRight, User, Shield, CheckCircle2, AlertCircle, BookOpen,
-  Lightbulb, TrendingUp, TrendingDown, Minus, BarChart2
+  Lightbulb, TrendingUp, TrendingDown, Minus, BarChart2, Download, ImageIcon
 } from "lucide-react";
 
 // Parse JSON steps string into array
@@ -313,6 +313,34 @@ export default function ProcessLibrary() {
 
               {/* ── SOP TAB ── */}
               <TabsContent value="sop" className="space-y-4 mt-4">
+
+                {/* Diagram image — viewable and downloadable */}
+                {selected.diagramUrl && (
+                  <div className="bg-card rounded-xl border overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b">
+                      <div className="flex items-center gap-2">
+                        <ImageIcon className="w-4 h-4 text-foreground" />
+                        <span className="text-sm font-semibold">Process Diagram</span>
+                      </div>
+                      <a
+                        href={selected.diagramUrl}
+                        download="client-onboarding-diagram.jpeg"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-1.5 text-xs text-primary hover:underline font-medium"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </a>
+                    </div>
+                    <a href={selected.diagramUrl} target="_blank" rel="noopener noreferrer">
+                      <img
+                        src={selected.diagramUrl}
+                        alt="Process diagram"
+                        className="w-full object-contain max-h-[600px] cursor-zoom-in"
+                      />
+                    </a>
+                  </div>
+                )}
 
                 {/* Structured phases (new JSON format) */}
                 {structuredPhases && (

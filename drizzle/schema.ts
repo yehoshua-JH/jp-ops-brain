@@ -359,6 +359,7 @@ export const processes = mysqlTable(
     steps: text("steps"), // JSON array of step strings
     domainTag: varchar("domainTag", { length: 50 }),
     linkedSessionIds: text("linkedSessionIds"), // JSON array of session numbers where discussed
+    diagramUrl: varchar("diagramUrl", { length: 500 }), // URL to uploaded process diagram image
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   },
