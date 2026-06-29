@@ -79,8 +79,18 @@ export default function VoiceAssistant() {
           body: JSON.stringify({ text: cleaned }),
         });
         if (!res.ok) {
-          console.warn("[TTS] Server error, skipping voice");
-          setRecordingState("idle");
+          console.warn("[TTS] Server TTS unavailable, falling back to browser speech");
+          // Fallback to browser SpeechSynthesis
+          if ('speechSynthesis' in window) {
+            const utter = new SpeechSynthesisUtterance(cleaned);
+            utter.rate = 1.0;
+            utter.pitch = 1.0;
+            utter.onend = () => setRecordingState("idle");
+            utter.onerror = () => setRecordingState("idle");
+            window.speechSynthesis.speak(utter);
+          } else {
+            setRecordingState("idle");
+          }
           return;
         }
         const blob = await res.blob();
