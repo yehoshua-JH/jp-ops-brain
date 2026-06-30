@@ -163,8 +163,14 @@ export async function getNextSessionNumber() {
 export async function createSession(session: typeof sessions.$inferInsert) {
   const db = await getDb();
   if (!db) return undefined;
-  const result = await db.insert(sessions).values(session);
-  return result;
+  await db.insert(sessions).values(session);
+  // Return the full inserted row by fetching by sessionNumber
+  const inserted = await db
+    .select()
+    .from(sessions)
+    .where(eq(sessions.sessionNumber, session.sessionNumber!))
+    .limit(1);
+  return inserted.length > 0 ? inserted[0] : undefined;
 }
 
 export async function getSessionById(id: number) {

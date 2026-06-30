@@ -51,6 +51,17 @@ const sessionsRouter = router({
           meetingType: input.meetingType,
           participants: input.participants.join(", "),
         });
+        // Build structured key points with domain tags
+        const keyPointsStructured = (result.keyPoints || []).map((point: string, i: number) => ({
+          domain: (result.domainTags || [])[i] || "OPS",
+          point,
+        }));
+        // Build structured blockers
+        const blockersStructured = (result.blockers || []).map((b: string) => ({
+          description: b,
+          domain: "OPS",
+          severity: "medium",
+        }));
         const session = await db.createSession({
           sessionNumber,
           date: input.meetingDate ? new Date(input.meetingDate) : new Date(),
@@ -60,8 +71,8 @@ const sessionsRouter = router({
           tone: "neutral",
           executiveSummary: result.summary,
           operationalSummary: result.summary,
-          keyPoints: JSON.stringify(result.keyPoints || []),
-          activeBlockers: JSON.stringify(result.blockers || []),
+          keyPoints: JSON.stringify(keyPointsStructured),
+          activeBlockers: JSON.stringify(blockersStructured),
           decisionsMade: JSON.stringify(result.decisions || []),
           actionItems: JSON.stringify(result.actionItems || []),
           openQuestions: JSON.stringify([]),
