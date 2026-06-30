@@ -71,7 +71,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     if (user.role !== undefined) {
       values.role = user.role;
       updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
+    } else if (user.openId === `local_${ENV.appUsername}` || user.openId === process.env.OWNER_OPEN_ID) {
       values.role = "admin";
       updateSet.role = "admin";
     }

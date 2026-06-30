@@ -6,14 +6,45 @@ import * as db from "./db";
 import { processMeeting } from "./llmProcessing";
 import { invokeLLM } from "./_core/llm";
 import { transcribeAudio } from "./_core/voiceTranscription";
+import { sdk } from "./_core/sdk";
+import { getSessionCookieOptions } from "./_core/cookies";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 const authRouter = router({
   me: protectedProcedure.query(({ ctx }) => ctx.user),
   logout: protectedProcedure.mutation(async ({ ctx }) => {
-    ctx.res.clearCookie("app_session");
+    ctx.res.clearCookie(COOKIE_NAME, { path: "/" });
     return { success: true };
   }),
+  login: publicProcedure
+    .input(z.object({
+      username: z.string().min(1),
+      password: z.string().min(1),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { compare } = await import("bcryptjs");
+      const appUsername = process.env.APP_USERNAME || "admin";
+      const appPasswordHash = process.env.APP_PASSWORD_HASH || "";
+      const appPasswordPlain = process.env.APP_PASSWORD || "";
+      let valid = false;
+      if (appPasswordHash.startsWith("$2")) {
+        valid = input.username === appUsername && await compare(input.password, appPasswordHash);
+      } else if (appPasswordPlain) {
+        valid = input.username === appUsername && input.password === appPasswordPlain;
+      }
+      if (!valid) {
+        throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
+      }
+      const openId = `local_${appUsername}`;
+      await db.upsertUser({ openId, name: appUsername, email: null, loginMethod: "password", lastSignedIn: new Date() });
+      const user = await db.getUserByOpenId(openId);
+      if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "User creation failed" });
+      const token = await sdk.createSessionToken(openId, { name: appUsername });
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+      return { success: true, user };
+    }),
 });
 
 // ─── Sessions ────────────────────────────────────────────────────────────────
