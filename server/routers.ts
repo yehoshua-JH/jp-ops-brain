@@ -194,6 +194,86 @@ const reportsRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate daily rollup" });
       }
     }),
+
+  generateRollup: protectedProcedure
+    .input(z.object({ type: z.enum(["daily", "weekly", "monthly"]) }))
+    .mutation(async ({ input }) => {
+      try {
+        const [allSessions, openBlockers, openActions, domains, clients] = await Promise.all([
+          db.getAllSessions(),
+          db.getBlockersByStatus("open"),
+          db.getActionItemsByStatus("open"),
+          db.getAllDomains(),
+          db.getAllClients(),
+        ]);
+
+        const now = new Date();
+        let sessionWindow: typeof allSessions;
+        let windowLabel: string;
+
+        if (input.type === "daily") {
+          const today = new Date(now); today.setHours(0,0,0,0);
+          sessionWindow = allSessions.filter(s => new Date(s.date) >= today);
+          if (!sessionWindow.length) sessionWindow = allSessions.slice(-3);
+          windowLabel = `Today (${now.toLocaleDateString()})`;
+        } else if (input.type === "weekly") {
+          const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+          sessionWindow = allSessions.filter(s => new Date(s.date) >= weekAgo);
+          if (!sessionWindow.length) sessionWindow = allSessions.slice(-10);
+          windowLabel = "Last 7 days";
+        } else {
+          const monthAgo = new Date(now); monthAgo.setDate(monthAgo.getDate() - 30);
+          sessionWindow = allSessions.filter(s => new Date(s.date) >= monthAgo);
+          if (!sessionWindow.length) sessionWindow = allSessions.slice(-20);
+          windowLabel = "Last 30 days";
+        }
+
+        const sessionSummaries = sessionWindow
+          .map(s => `Session ${s.sessionNumber} (${new Date(s.date).toLocaleDateString()}): ${s.executiveSummary}\nKey Points: ${Array.isArray(s.keyPoints) ? (s.keyPoints as string[]).join("; ") : s.keyPoints}`)
+          .join("\n\n");
+
+        const blockerSummary = openBlockers.slice(0, 15)
+          .map(b => `[${b.domainTag}] ${b.description} (appeared ${b.timesAppeared}x)`)
+          .join("\n");
+
+        const actionSummary = openActions.slice(0, 20)
+          .map(a => `${a.owner}: ${a.task} [${a.priority}]${a.deadline ? ` due ${new Date(a.deadline).toLocaleDateString()}` : ""}`)
+          .join("\n");
+
+        const clientSummary = clients
+          .map(c => `${c.name}: health=${c.healthScore ?? "?"}%, status=${c.status ?? "active"}`)
+          .join("\n");
+
+        const domainSummary = domains
+          .map(d => `${d.name}: ${d.idealEndState}`)
+          .join("\n");
+
+        const typePrompt = input.type === "daily"
+          ? `Generate a concise DAILY ROLLUP REPORT for JivePilot operations covering ${windowLabel}. Structure it with these sections: ## Daily Rollup — ${now.toLocaleDateString()} / ### Sessions Today / ### Key Decisions Made / ### Blockers Surfaced / ### Action Items Due / ### Domain Health Snapshot / ### Tomorrow's Focus`
+          : input.type === "weekly"
+          ? `Generate a WEEKLY REVIEW REPORT for JivePilot operations covering ${windowLabel}. Sections: ## Weekly Review — Week of ${now.toLocaleDateString()} / ### Sessions This Week (${sessionWindow.length}) / ### Weekly Themes & Patterns / ### Domain Maturity Changes / ### Key Decisions / ### Blockers: New / Resolved / Chronic / ### Action Items: Completed / Overdue / New / ### Client Health Summary / ### Strategic Insights / ### Next Week's Priorities`
+          : `Generate a MONTHLY REVIEW REPORT for JivePilot operations covering ${windowLabel}. Sections: ## Monthly Review — ${now.toLocaleString("default", {month:"long",year:"numeric"})} / ### Sessions This Month (${sessionWindow.length}) / ### Monthly Achievements / ### Domain Maturity Assessment / ### Client Portfolio Health / ### Team Performance / ### Recurring Blockers & Root Causes / ### Strategic Recommendations for Next Month / ### Timeline Stamp`;
+
+        const systemPrompt = `You are the JivePilot Ops Brain generating a structured operational report. Use ONLY the data provided. Be specific, cite session numbers, and provide actionable insights. Do not fabricate data.\n\nCOMPANY: JivePilot — staffing and operations company. Key people: Yehoshua (CEO), Reef (Ops), Charné (HR), Mike (Finance).\n\nSESSIONS IN WINDOW:\n${sessionSummaries || "No sessions in this window"}\n\nOPEN BLOCKERS (${openBlockers.length} total):\n${blockerSummary || "None"}\n\nOPEN ACTION ITEMS (${openActions.length} total):\n${actionSummary || "None"}\n\nCLIENT HEALTH:\n${clientSummary || "No clients"}\n\nOPERATIONAL DOMAINS:\n${domainSummary}`;
+
+        const llmResult = await invokeLLM({
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: typePrompt },
+          ],
+          maxTokens: 2000,
+        });
+
+        const report = typeof llmResult.choices?.[0]?.message?.content === "string"
+          ? llmResult.choices[0].message.content
+          : "Failed to generate report content.";
+
+        return { success: true, report, sessionCount: sessionWindow.length, generatedAt: now.toISOString() };
+      } catch (error) {
+        console.error("[Reports] generateRollup error:", error);
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to generate rollup report" });
+      }
+    }),
 });
 
 // ─── Voice & AI Brain ─────────────────────────────────────────────────────────
