@@ -1,14 +1,14 @@
 import { trpc } from "@/lib/trpc";
 import { TRPCClientError } from "@trpc/client";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useRef, useMemo } from "react";
 
 type UseAuthOptions = {
   redirectOnUnauthenticated?: boolean;
   redirectPath?: string;
 };
 
-// Read cached user from localStorage synchronously so we never flash the
-// loading spinner on a page refresh when the user is already logged in.
+// Read cached user from localStorage synchronously — used as initialData
+// so the query starts with data and never triggers a loading flash.
 function getCachedUser() {
   try {
     const raw = localStorage.getItem("jp-auth-user");
@@ -22,20 +22,26 @@ export function useAuth(options?: UseAuthOptions) {
     options ?? {};
   const utils = trpc.useUtils();
 
+  // Track whether we've ever successfully confirmed auth from the server.
+  // This prevents flashing "not authenticated" during the initial network check
+  // when we have a cached user.
+  const serverConfirmedRef = useRef<boolean | null>(null);
+  const cachedUser = useRef(getCachedUser());
+
   const meQuery = trpc.auth.me.useQuery(undefined, {
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // Seed the cache with whatever is in localStorage — this means isLoading
-    // starts as false if we already have a cached user, eliminating the flash.
-    initialData: getCachedUser(),
-    // Keep the result fresh for 5 minutes
+    // Seed with localStorage so isLoading starts as false
+    initialData: cachedUser.current,
+    // Keep fresh for 5 minutes — avoids redundant network calls
     staleTime: 5 * 60 * 1000,
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
       localStorage.removeItem("jp-auth-user");
+      serverConfirmedRef.current = false;
       utils.auth.me.setData(undefined, undefined);
     },
   });
@@ -53,35 +59,54 @@ export function useAuth(options?: UseAuthOptions) {
       throw error;
     } finally {
       localStorage.removeItem("jp-auth-user");
+      serverConfirmedRef.current = false;
       utils.auth.me.setData(undefined, undefined);
       await utils.auth.me.invalidate();
     }
   }, [logoutMutation, utils]);
 
-  // Persist user to localStorage whenever it changes
+  // Update localStorage and server-confirmed ref when query settles
   useEffect(() => {
-    if (meQuery.data !== undefined) {
+    if (meQuery.isFetched) {
+      serverConfirmedRef.current = Boolean(meQuery.data);
       if (meQuery.data) {
         localStorage.setItem("jp-auth-user", JSON.stringify(meQuery.data));
       } else {
         localStorage.removeItem("jp-auth-user");
       }
     }
-  }, [meQuery.data]);
+  }, [meQuery.data, meQuery.isFetched]);
 
   const state = useMemo(() => {
-    // Only show the full-page loading spinner on the very first load when we
-    // have no cached data at all. Background refetches should be invisible.
-    const hasNoCache = meQuery.data === undefined && !meQuery.isFetched;
+    const hasCachedUser = Boolean(cachedUser.current);
+    const serverData = meQuery.data;
+
+    // Determine the effective user:
+    // - If server has responded, trust the server result
+    // - If server hasn't responded yet but we have a cache, use the cache
+    //   (prevents flash while the background refetch is in flight)
+    const effectiveUser = meQuery.isFetched
+      ? (serverData ?? null)
+      : (serverData ?? cachedUser.current ?? null);
+
+    // Only show loading spinner when:
+    // 1. We have NO cached data at all (truly first visit / logged out)
+    // 2. AND the server hasn't responded yet
+    const showLoading =
+      !hasCachedUser && !meQuery.isFetched && !logoutMutation.isPending
+        ? meQuery.isLoading
+        : logoutMutation.isPending;
+
     return {
-      user: meQuery.data ?? null,
-      loading: hasNoCache || logoutMutation.isPending,
+      user: effectiveUser,
+      loading: showLoading,
       error: meQuery.error ?? logoutMutation.error ?? null,
-      isAuthenticated: Boolean(meQuery.data),
+      isAuthenticated: Boolean(effectiveUser),
     };
   }, [
     meQuery.data,
     meQuery.error,
+    meQuery.isLoading,
     meQuery.isFetched,
     logoutMutation.error,
     logoutMutation.isPending,
@@ -89,7 +114,9 @@ export function useAuth(options?: UseAuthOptions) {
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (state.loading) return;
+    // Only redirect after the server has confirmed — never redirect based on
+    // stale cache alone, and never redirect while loading
+    if (!meQuery.isFetched) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
@@ -98,7 +125,7 @@ export function useAuth(options?: UseAuthOptions) {
   }, [
     redirectOnUnauthenticated,
     redirectPath,
-    state.loading,
+    meQuery.isFetched,
     state.user,
   ]);
 
