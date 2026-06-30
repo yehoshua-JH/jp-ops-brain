@@ -46,7 +46,7 @@ class SDKServer {
     const secretKey = this.getSessionSecret();
     return new SignJWT({
       openId,
-      appId: "jivepilot-ops-brain",
+      appId: "jivepilot-brain",
       name: options.name || "",
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })

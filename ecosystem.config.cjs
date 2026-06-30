@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "jivepilot-ops",
+      name: "jivepilot-brain",
       script: "node",
       args: "--import tsx/esm server/_core/index.ts",
       cwd: "/var/www/jivepilot-ops",
@@ -14,8 +14,8 @@ module.exports = {
       autorestart: true,
       watch: false,
       max_memory_restart: "512M",
-      error_file: "/var/log/jivepilot-ops/error.log",
-      out_file: "/var/log/jivepilot-ops/out.log",
+      error_file: "/var/log/jivepilot-brain/error.log",
+      out_file: "/var/log/jivepilot-brain/out.log",
       log_date_format: "YYYY-MM-DD HH:mm:ss",
     },
   ],
