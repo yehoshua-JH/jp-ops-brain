@@ -2,9 +2,10 @@ module.exports = {
   apps: [
     {
       name: "jivepilot-ops",
-      script: "node_modules/.bin/tsx",
-      args: "server/_core/index.ts",
+      script: "node",
+      args: "--import tsx/esm server/_core/index.ts",
       cwd: "/var/www/jivepilot-ops",
+      interpreter: "none",
       env_production: {
         NODE_ENV: "production",
         PORT: "3001",
