@@ -726,3 +726,79 @@ export async function getActionItemById(id: number) {
   const rows = await db.select().from(actionItems).where(eq(actionItems.id, id)).limit(1);
   return rows[0] ?? null;
 }
+
+// ─── User Management ─────────────────────────────────────────────────────────
+/** Get all users (for superadmin user management page) */
+export async function getAllUsers() {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select({
+    id: users.id,
+    openId: users.openId,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+    loginMethod: users.loginMethod,
+    createdAt: users.createdAt,
+    lastSignedIn: users.lastSignedIn,
+  }).from(users).orderBy(users.createdAt);
+}
+
+/** Create a new user with hashed password */
+export async function createUser(data: {
+  name: string;
+  email: string;
+  passwordHash: string;
+  role: "user" | "admin" | "superadmin";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  const openId = `local_${data.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "_")}_${Date.now()}`;
+  await db.insert(users).values({
+    openId,
+    name: data.name,
+    email: data.email,
+    loginMethod: "password",
+    passwordHash: data.passwordHash,
+    role: data.role,
+    lastSignedIn: new Date(),
+  });
+  return await db.select().from(users).where(eq(users.openId, openId)).limit(1).then(r => r[0]);
+}
+
+/** Update a user's password hash */
+export async function updateUserPassword(userId: number, passwordHash: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ passwordHash, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+/** Update a user's role */
+export async function updateUserRole(userId: number, role: "user" | "admin" | "superadmin") {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({ role, updatedAt: new Date() }).where(eq(users.id, userId));
+}
+
+/** Delete a user */
+export async function deleteUser(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(users).where(eq(users.id, userId));
+}
+
+/** Get user by email */
+export async function getUserByEmail(email: string) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** Get user by ID */
+export async function getUserById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  return rows[0] ?? null;
+}

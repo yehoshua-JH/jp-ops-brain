@@ -24,6 +24,22 @@ const authRouter = router({
     }))
     .mutation(async ({ input, ctx }) => {
       const { compare } = await import("bcryptjs");
+      // Try DB-based auth first (email or name match)
+      let user = await db.getUserByEmail(input.username) ?? null;
+      if (!user) {
+        // Try by openId pattern (e.g. 'reef' matches 'local_reef')
+        user = await db.getUserByOpenId(`local_${input.username}`) ?? null;
+      }
+      if (user && user.passwordHash) {
+        const valid = await compare(input.password, user.passwordHash);
+        if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Invalid credentials" });
+        await db.upsertUser({ openId: user.openId, lastSignedIn: new Date() });
+        const token = await sdk.createSessionToken(user.openId, { name: user.name ?? input.username });
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+        return { success: true, user };
+      }
+      // Fallback: env-based auth (legacy)
       const appUsername = process.env.APP_USERNAME || "admin";
       const appPasswordHash = process.env.APP_PASSWORD_HASH || "";
       const appPasswordPlain = process.env.APP_PASSWORD || "";
@@ -38,12 +54,12 @@ const authRouter = router({
       }
       const openId = `local_${appUsername}`;
       await db.upsertUser({ openId, name: appUsername, email: null, loginMethod: "password", lastSignedIn: new Date() });
-      const user = await db.getUserByOpenId(openId);
-      if (!user) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "User creation failed" });
+      const legacyUser = await db.getUserByOpenId(openId);
+      if (!legacyUser) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "User creation failed" });
       const token = await sdk.createSessionToken(openId, { name: appUsername });
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-      return { success: true, user };
+      return { success: true, user: legacyUser };
     }),
 });
 
@@ -776,6 +792,86 @@ const processesRouter = router({
     }),
 });
 
+// ─── User Management (superadmin only) ──────────────────────────────────────
+const superadminProcedure = protectedProcedure.use(({ ctx, next }) => {
+  if (ctx.user.role !== "superadmin" && ctx.user.role !== "admin") {
+    throw new TRPCError({ code: "FORBIDDEN", message: "Superadmin access required" });
+  }
+  return next({ ctx });
+});
+
+const usersRouter = router({
+  getAll: superadminProcedure.query(async () => {
+    return await db.getAllUsers();
+  }),
+
+  create: superadminProcedure
+    .input(z.object({
+      name: z.string().min(1),
+      email: z.string().email(),
+      password: z.string().min(6),
+      role: z.enum(["user", "admin", "superadmin"]),
+    }))
+    .mutation(async ({ input }) => {
+      const { hash } = await import("bcryptjs");
+      // Check if email already exists
+      const existing = await db.getUserByEmail(input.email);
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "A user with this email already exists" });
+      const passwordHash = await hash(input.password, 12);
+      const user = await db.createUser({ name: input.name, email: input.email, passwordHash, role: input.role });
+      return { success: true, user };
+    }),
+
+  resetPassword: superadminProcedure
+    .input(z.object({
+      userId: z.number(),
+      newPassword: z.string().min(6),
+    }))
+    .mutation(async ({ input }) => {
+      const { hash } = await import("bcryptjs");
+      const passwordHash = await hash(input.newPassword, 12);
+      await db.updateUserPassword(input.userId, passwordHash);
+      return { success: true };
+    }),
+
+  updateRole: superadminProcedure
+    .input(z.object({
+      userId: z.number(),
+      role: z.enum(["user", "admin", "superadmin"]),
+    }))
+    .mutation(async ({ input }) => {
+      await db.updateUserRole(input.userId, input.role);
+      return { success: true };
+    }),
+
+  delete: superadminProcedure
+    .input(z.object({ userId: z.number() }))
+    .mutation(async ({ input, ctx }) => {
+      // Prevent deleting yourself
+      if (ctx.user.id === input.userId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "You cannot delete your own account" });
+      }
+      await db.deleteUser(input.userId);
+      return { success: true };
+    }),
+
+  changeOwnPassword: protectedProcedure
+    .input(z.object({
+      currentPassword: z.string().min(1),
+      newPassword: z.string().min(6),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      const { compare, hash } = await import("bcryptjs");
+      const user = await db.getUserById(ctx.user.id);
+      if (!user?.passwordHash) throw new TRPCError({ code: "BAD_REQUEST", message: "No password set for this account" });
+      const valid = await compare(input.currentPassword, user.passwordHash);
+      if (!valid) throw new TRPCError({ code: "UNAUTHORIZED", message: "Current password is incorrect" });
+      const passwordHash = await hash(input.newPassword, 12);
+      await db.updateUserPassword(ctx.user.id, passwordHash);
+      return { success: true };
+    }),
+});
+
 // ─── App Router ───────────────────────────────────────────────────────────────
 export const appRouter = router({
   auth: authRouter,
@@ -790,6 +886,7 @@ export const appRouter = router({
   employees: employeesRouter,
   clients: clientsRouter,
   processes: processesRouter,
+  users: usersRouter,
 });
 
 export type AppRouter = typeof appRouter;
