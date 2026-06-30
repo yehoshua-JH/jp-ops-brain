@@ -7,6 +7,16 @@ type UseAuthOptions = {
   redirectPath?: string;
 };
 
+// Read cached user from localStorage synchronously so we never flash the
+// loading spinner on a page refresh when the user is already logged in.
+function getCachedUser() {
+  try {
+    const raw = localStorage.getItem("jp-auth-user");
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return undefined;
+}
+
 export function useAuth(options?: UseAuthOptions) {
   const { redirectOnUnauthenticated = false, redirectPath = "/login" } =
     options ?? {};
@@ -16,12 +26,16 @@ export function useAuth(options?: UseAuthOptions) {
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
-    // Keep the result fresh for 5 minutes — prevents re-fetching on every render
+    // Seed the cache with whatever is in localStorage — this means isLoading
+    // starts as false if we already have a cached user, eliminating the flash.
+    initialData: getCachedUser(),
+    // Keep the result fresh for 5 minutes
     staleTime: 5 * 60 * 1000,
   });
 
   const logoutMutation = trpc.auth.logout.useMutation({
     onSuccess: () => {
+      localStorage.removeItem("jp-auth-user");
       utils.auth.me.setData(undefined, undefined);
     },
   });
@@ -38,40 +52,44 @@ export function useAuth(options?: UseAuthOptions) {
       }
       throw error;
     } finally {
+      localStorage.removeItem("jp-auth-user");
       utils.auth.me.setData(undefined, undefined);
       await utils.auth.me.invalidate();
     }
   }, [logoutMutation, utils]);
 
-  // Store user info in localStorage as a side effect (not inside useMemo)
+  // Persist user to localStorage whenever it changes
   useEffect(() => {
     if (meQuery.data !== undefined) {
-      localStorage.setItem(
-        "manus-runtime-user-info",
-        JSON.stringify(meQuery.data ?? null)
-      );
+      if (meQuery.data) {
+        localStorage.setItem("jp-auth-user", JSON.stringify(meQuery.data));
+      } else {
+        localStorage.removeItem("jp-auth-user");
+      }
     }
   }, [meQuery.data]);
 
   const state = useMemo(() => {
+    // Only show the full-page loading spinner on the very first load when we
+    // have no cached data at all. Background refetches should be invisible.
+    const hasNoCache = meQuery.data === undefined && !meQuery.isFetched;
     return {
       user: meQuery.data ?? null,
-      // Only show loading on the initial fetch, not on background refetches
-      loading: meQuery.isLoading || logoutMutation.isPending,
+      loading: hasNoCache || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),
     };
   }, [
     meQuery.data,
     meQuery.error,
-    meQuery.isLoading,
+    meQuery.isFetched,
     logoutMutation.error,
     logoutMutation.isPending,
   ]);
 
   useEffect(() => {
     if (!redirectOnUnauthenticated) return;
-    if (meQuery.isLoading || logoutMutation.isPending) return;
+    if (state.loading) return;
     if (state.user) return;
     if (typeof window === "undefined") return;
     if (window.location.pathname === redirectPath) return;
@@ -80,8 +98,7 @@ export function useAuth(options?: UseAuthOptions) {
   }, [
     redirectOnUnauthenticated,
     redirectPath,
-    logoutMutation.isPending,
-    meQuery.isLoading,
+    state.loading,
     state.user,
   ]);
 
