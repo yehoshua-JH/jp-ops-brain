@@ -19,6 +19,7 @@ import ClientsPage from "./pages/ClientsPage";
 import ProcessLibrary from "./pages/ProcessLibrary";
 import { useAuth } from "./_core/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import LoginPage from "./pages/LoginPage";
 
 function Router() {
   const { isAuthenticated, loading } = useAuth();
@@ -32,7 +33,7 @@ function Router() {
   }
 
   if (!isAuthenticated) {
-    return <Route path={"*"} component={Home} />;
+    return <LoginPage />;
   }
 
   return (
