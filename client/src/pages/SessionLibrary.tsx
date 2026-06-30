@@ -4,13 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { ChevronDown, ChevronUp, Brain, Search, Calendar, Users } from "lucide-react";
+import { ChevronDown, ChevronUp, Brain, Search, Calendar, Users, Pencil } from "lucide-react";
+import EditDrawer, { EditField } from "@/components/EditDrawer";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 export default function SessionLibrary() {
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [editSession, setEditSession] = useState<{ id: number; executiveSummary: string; decisionsMade: string; openQuestions: string } | null>(null);
   const [, navigate] = useLocation();
+  const utils = trpc.useUtils();
+  const updateSession = trpc.sessions.update.useMutation({
+    onSuccess: () => { utils.sessions.getAll.invalidate(); toast.success("Session updated."); },
+  });
 
   const { data: sessions, isLoading } = trpc.sessions.getAll.useQuery();
 
@@ -106,6 +113,17 @@ export default function SessionLibrary() {
                 </button>
                 {isOpen && (
                   <div className="px-5 pb-5 border-t border-border pt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="col-span-full flex justify-end">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs gap-1.5"
+                        onClick={(e) => { e.stopPropagation(); setEditSession({ id: s.id, executiveSummary: s.executiveSummary, decisionsMade: s.decisionsMade, openQuestions: s.openQuestions }); }}
+                      >
+                        <Pencil className="w-3 h-3" />
+                        Edit Session
+                      </Button>
+                    </div>
                     {participants.length > 0 && (
                       <div className="flex items-center gap-2 col-span-full">
                         <Users className="w-3 h-3 text-foreground" />
@@ -142,6 +160,30 @@ export default function SessionLibrary() {
             );
           })}
         </div>
+      )}
+
+      {/* Edit Session Drawer */}
+      {editSession && (
+        <EditDrawer
+          open={!!editSession}
+          onClose={() => setEditSession(null)}
+          title={`Edit Session #${sorted.find((s) => s.id === editSession.id)?.sessionNumber ?? ""}`}
+          subtitle="Correct the summary, decisions, or open questions. Use voice or text."
+          fields={[
+            { key: "executiveSummary", label: "Executive Summary", type: "textarea", value: editSession.executiveSummary, placeholder: "1-paragraph summary for the founder..." },
+            { key: "decisionsMade", label: "Decisions Made (JSON array)", type: "textarea", value: editSession.decisionsMade, placeholder: '["Decision 1", "Decision 2"]' },
+            { key: "openQuestions", label: "Open Questions (JSON array)", type: "textarea", value: editSession.openQuestions, placeholder: '["Question 1", "Question 2"]' },
+          ] as EditField[]}
+          onSave={async (values) => {
+            await updateSession.mutateAsync({
+              id: editSession.id,
+              executiveSummary: values.executiveSummary || undefined,
+              decisionsMade: values.decisionsMade || undefined,
+              openQuestions: values.openQuestions || undefined,
+            });
+          }}
+          onUpdated={() => setEditSession(null)}
+        />
       )}
     </div>
   );

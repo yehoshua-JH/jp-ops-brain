@@ -618,3 +618,111 @@ export async function updateEmployeeRisk(
   if (!db) return;
   await db.update(employees).set(updates).where(eq(employees.id, id));
 }
+
+// ─── Full-field Edit Helpers ──────────────────────────────────────────────────
+
+/** Update any editable fields on a blocker */
+export async function updateBlockerFields(
+  id: number,
+  updates: {
+    description?: string;
+    severity?: string;
+    domainTag?: string;
+    resolutionNote?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  const clean: Record<string, unknown> = {};
+  if (updates.description !== undefined) clean.description = updates.description;
+  if (updates.domainTag !== undefined) clean.domainTag = updates.domainTag;
+  if (updates.resolutionNote !== undefined) clean.resolutionNote = updates.resolutionNote;
+  if (Object.keys(clean).length > 0) {
+    await db.update(blockers).set(clean).where(eq(blockers.id, id));
+  }
+}
+
+/** Update any editable fields on an action item */
+export async function updateActionItemFields(
+  id: number,
+  updates: {
+    task?: string;
+    owner?: string;
+    priority?: "HIGH" | "MED" | "LOW";
+    status?: "open" | "complete";
+    deadline?: string | null;
+    completionNote?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  const clean: Record<string, unknown> = {};
+  if (updates.task !== undefined) clean.task = updates.task;
+  if (updates.owner !== undefined) clean.owner = updates.owner;
+  if (updates.priority !== undefined) clean.priority = updates.priority;
+  if (updates.status !== undefined) {
+    clean.status = updates.status;
+    if (updates.status === "complete") clean.completedAt = new Date();
+  }
+  if (updates.deadline !== undefined) clean.deadline = updates.deadline ? new Date(updates.deadline) : null;
+  if (Object.keys(clean).length > 0) {
+    await db.update(actionItems).set(clean).where(eq(actionItems.id, id));
+  }
+}
+
+/** Update editable fields on a session */
+export async function updateSessionFields(
+  id: number,
+  updates: {
+    executiveSummary?: string;
+    keyPoints?: string;
+    decisionsMade?: string;
+    actionItems?: string;
+    openQuestions?: string;
+  }
+) {
+  const db = await getDb();
+  if (!db) return;
+  const clean: Record<string, unknown> = {};
+  if (updates.executiveSummary !== undefined) clean.executiveSummary = updates.executiveSummary;
+  if (updates.keyPoints !== undefined) clean.keyPoints = updates.keyPoints;
+  if (updates.decisionsMade !== undefined) clean.decisionsMade = updates.decisionsMade;
+  if (updates.actionItems !== undefined) clean.actionItems = updates.actionItems;
+  if (updates.openQuestions !== undefined) clean.openQuestions = updates.openQuestions;
+  if (Object.keys(clean).length > 0) {
+    await db.update(sessions).set(clean).where(eq(sessions.id, id));
+  }
+}
+
+/** Manually override a domain's maturity level (creates a new session_domain_maturity row with sessionId=0 for manual overrides) */
+export async function overrideDomainMaturity(
+  domainId: number,
+  maturityLevel: "Not started" | "Early" | "Developing" | "Functional with gaps" | "Solid" | "World-class",
+  explanation?: string
+) {
+  const db = await getDb();
+  if (!db) return;
+  await db.insert(sessionDomainMaturity).values({
+    sessionId: 0, // 0 = manual override, not tied to a session
+    domainId,
+    maturityLevel,
+    explanation: explanation ?? "Manual override",
+    changeFromPrevious: "Improved",
+  });
+}
+
+/** Get a single blocker by ID */
+export async function getBlockerById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(blockers).where(eq(blockers.id, id)).limit(1);
+  return rows[0] ?? null;
+}
+
+/** Get a single action item by ID */
+export async function getActionItemById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const rows = await db.select().from(actionItems).where(eq(actionItems.id, id)).limit(1);
+  return rows[0] ?? null;
+}

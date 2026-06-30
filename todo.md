@@ -243,3 +243,21 @@
 - Functional with gaps: yellow
 - Solid: teal/green
 - World-class: deep green
+
+## Edit & Voice Update System
+- [ ] Backend: updateBlocker mutation (description, severity, status, resolution note, mark resolved, escalate)
+- [ ] Backend: updateActionItem mutation (status, owner, deadline, completion note)
+- [ ] Backend: updateDomainMaturity mutation (manual override of maturity level + note)
+- [ ] Backend: updateSession mutation (edit summary, key points, decisions)
+- [ ] Backend: updateClient mutation (status, health score, risk notes)
+- [ ] Backend: updateEmployee mutation (criticality score, notes, risk flags)
+- [ ] UI: Blockers page — inline edit panel (click blocker → edit description, add update, mark resolved, escalate)
+- [ ] UI: Action Items page — inline status toggle + edit drawer
+- [ ] UI: Domain Health page — maturity override button per domain
+- [ ] UI: Session detail — edit summary, key points, decisions inline
+- [ ] UI: Clients page — inline risk status update
+- [ ] UI: Employees page — inline criticality/risk update
+- [ ] Voice: Context-aware voice update — tap any item anywhere in app → opens voice recorder → Whisper transcribes → GPT-4o interprets intent and routes update to correct DB field
+- [ ] Voice: Global floating "Voice Update" button accessible from all pages
+- [ ] Voice: Voice assistant understands context (which item was tapped) and asks clarifying questions if needed
+- [ ] Voice: Confirmation step before saving voice-driven updates

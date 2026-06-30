@@ -20,6 +20,7 @@ import ProcessLibrary from "./pages/ProcessLibrary";
 import { useAuth } from "./_core/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import LoginPage from "./pages/LoginPage";
+import GlobalVoiceButton from "./components/GlobalVoiceButton";
 
 function Router() {
   const { isAuthenticated, loading } = useAuth();
@@ -38,6 +39,7 @@ function Router() {
 
   return (
     <DashboardLayout>
+      <GlobalVoiceButton />
       <Switch>
         <Route path={"/"} component={Home} />
         <Route path={"/process"} component={InputProcessor} />

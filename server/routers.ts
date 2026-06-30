@@ -34,6 +34,21 @@ const sessionsRouter = router({
       return await db.getSessionByNumber(input.sessionNumber);
     }),
 
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      executiveSummary: z.string().optional(),
+      keyPoints: z.string().optional(),
+      decisionsMade: z.string().optional(),
+      actionItems: z.string().optional(),
+      openQuestions: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...updates } = input;
+      await db.updateSessionFields(id, updates);
+      return { success: true };
+    }),
+
   process: protectedProcedure
     .input(
       z.object({
@@ -109,6 +124,22 @@ const actionItemsRouter = router({
       await db.updateActionItemStatus(input.id, input.status);
       return { success: true };
     }),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      task: z.string().optional(),
+      owner: z.string().optional(),
+      priority: z.enum(["HIGH", "MED", "LOW"]).optional(),
+      status: z.enum(["open", "complete"]).optional(),
+      deadline: z.string().nullable().optional(),
+      completionNote: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...updates } = input;
+      await db.updateActionItemFields(id, updates);
+      return { success: true };
+    }),
 });
 
 // ─── Blockers ─────────────────────────────────────────────────────────────────
@@ -141,6 +172,20 @@ const blockersRouter = router({
     .input(z.object({ id: z.number(), note: z.string().optional() }))
     .mutation(async ({ input }) => {
       await db.escalateBlocker(input.id, input.note);
+      return { success: true };
+    }),
+
+  update: protectedProcedure
+    .input(z.object({
+      id: z.number(),
+      description: z.string().optional(),
+      severity: z.enum(["low", "medium", "high", "critical"]).optional(),
+      domainTag: z.string().optional(),
+      resolutionNote: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      const { id, ...updates } = input;
+      await db.updateBlockerFields(id, updates);
       return { success: true };
     }),
 });
@@ -176,6 +221,17 @@ const domainsRouter = router({
     .input(z.object({ domainId: z.number(), idealEndState: z.string() }))
     .mutation(async ({ input }) => {
       await db.updateDomainIdealEndState(input.domainId, input.idealEndState);
+      return { success: true };
+    }),
+
+  overrideMaturity: protectedProcedure
+    .input(z.object({
+      domainId: z.number(),
+      maturityLevel: z.enum(["Not started", "Early", "Developing", "Functional with gaps", "Solid", "World-class"]),
+      explanation: z.string().optional(),
+    }))
+    .mutation(async ({ input }) => {
+      await db.overrideDomainMaturity(input.domainId, input.maturityLevel, input.explanation);
       return { success: true };
     }),
 });
@@ -393,6 +449,107 @@ Answer the user's question based on this data. Be specific and cite sources (e.g
       } catch (error) {
         console.error("[Brain] Ask error:", error);
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Failed to process question" });
+      }
+    }),
+
+  // Context-aware voice update — transcribe audio, understand intent, route to correct DB field
+  voiceUpdate: protectedProcedure
+    .input(
+      z.object({
+        audioUrl: z.string().url(),
+        // Context about what the user was looking at when they pressed the mic
+        context: z.object({
+          entityType: z.enum(["blocker", "actionItem", "client", "employee", "session", "domain", "general"]),
+          entityId: z.number().optional(),
+          entityName: z.string().optional(),
+          currentPage: z.string().optional(),
+        }),
+      })
+    )
+    .mutation(async ({ input }) => {
+      // Step 1: Transcribe the audio
+      const transcription = await transcribeAudio({ audioUrl: input.audioUrl, language: "en" });
+      if ("error" in transcription) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: transcription.error });
+      }
+      const transcript = transcription.text;
+
+      // Step 2: Load relevant context from DB
+      const { entityType, entityId } = input.context;
+      let entityData: any = null;
+      if (entityId) {
+        if (entityType === "blocker") entityData = await db.getBlockerById(entityId);
+        else if (entityType === "actionItem") entityData = await db.getActionItemById(entityId);
+        else if (entityType === "client") entityData = await db.getClientById(entityId);
+        else if (entityType === "employee") entityData = await db.getEmployeeById(entityId);
+        else if (entityType === "session") entityData = await db.getSessionById(entityId);
+      }
+
+      // Step 3: Ask GPT-4o to interpret the voice update and produce a structured action
+      const contextDesc = entityData
+        ? `The user was looking at ${entityType} #${entityId}: ${JSON.stringify(entityData).slice(0, 500)}`
+        : `The user was on the ${input.context.currentPage ?? entityType} page.`;
+
+      const systemPrompt = `You are the JivePilot Ops Brain. The user spoke a voice update while looking at their operations dashboard.
+
+${contextDesc}
+
+The user said: "${transcript}"
+
+Interpret what the user wants to update and return a JSON action object. Possible actions:
+- { "action": "updateBlocker", "id": number, "fields": { "description"?: string, "resolutionNote"?: string, "status"?: "open"|"resolved", "isChronicFlag"?: boolean } }
+- { "action": "updateActionItem", "id": number, "fields": { "task"?: string, "owner"?: string, "status"?: "open"|"complete", "priority"?: "HIGH"|"MED"|"LOW", "deadline"?: string } }
+- { "action": "updateClient", "id": number, "fields": { "status"?: string, "healthScore"?: number, "notes"?: string } }
+- { "action": "updateEmployee", "id": number, "fields": { "role"?: string, "status"?: string, "criticalityScore"?: number, "replacementReadiness"?: number, "backupPerson"?: string, "notes"?: string } }
+- { "action": "updateSession", "id": number, "fields": { "executiveSummary"?: string, "decisionsMade"?: string, "openQuestions"?: string } }
+- { "action": "addNote", "entityType": string, "id": number, "note": string }
+- { "action": "unknown", "message": string }
+
+Return ONLY valid JSON. If you cannot determine the intent, return { "action": "unknown", "message": "explain why" }.`;
+
+      const llmResult = await invokeLLM({
+        messages: [{ role: "user", content: systemPrompt }],
+        response_format: { type: "json_object" },
+      });
+
+      let parsedAction: any;
+      try {
+        const raw = llmResult.choices?.[0]?.message?.content;
+        parsedAction = typeof raw === "string" ? JSON.parse(raw) : raw;
+      } catch {
+        return { success: false, transcript, action: null, message: "Could not parse AI response" };
+      }
+
+      // Step 4: Execute the action
+      try {
+        if (parsedAction.action === "updateBlocker" && parsedAction.id) {
+          await db.updateBlockerFields(parsedAction.id, parsedAction.fields ?? {});
+        } else if (parsedAction.action === "updateActionItem" && parsedAction.id) {
+          await db.updateActionItemFields(parsedAction.id, parsedAction.fields ?? {});
+        } else if (parsedAction.action === "updateClient" && parsedAction.id) {
+          await db.updateClientRisk(parsedAction.id, parsedAction.fields ?? {});
+        } else if (parsedAction.action === "updateEmployee" && parsedAction.id) {
+          await db.updateEmployeeRisk(parsedAction.id, parsedAction.fields ?? {});
+        } else if (parsedAction.action === "updateSession" && parsedAction.id) {
+          await db.updateSessionFields(parsedAction.id, parsedAction.fields ?? {});
+        } else if (parsedAction.action === "addNote" && parsedAction.id) {
+          // Append note to the entity's notes field
+          if (parsedAction.entityType === "client") {
+            const existing = await db.getClientById(parsedAction.id);
+            const newNote = existing?.notes ? `${existing.notes}\n\n${parsedAction.note}` : parsedAction.note;
+            await db.updateClientRisk(parsedAction.id, { notes: newNote });
+          } else if (parsedAction.entityType === "employee") {
+            const existing = await db.getEmployeeById(parsedAction.id);
+            const newNote = existing?.notes ? `${existing.notes}\n\n${parsedAction.note}` : parsedAction.note;
+            await db.updateEmployeeRisk(parsedAction.id, { notes: newNote });
+          } else if (parsedAction.entityType === "blocker") {
+            await db.updateBlockerFields(parsedAction.id, { resolutionNote: parsedAction.note });
+          }
+        }
+        return { success: true, transcript, action: parsedAction, message: `Applied: ${parsedAction.action}` };
+      } catch (err) {
+        console.error("[VoiceUpdate] Execution error:", err);
+        return { success: false, transcript, action: parsedAction, message: "Update parsed but failed to save" };
       }
     }),
 

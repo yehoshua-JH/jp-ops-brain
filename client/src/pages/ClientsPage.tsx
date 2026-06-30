@@ -4,8 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, AlertTriangle, TrendingUp, Users, DollarSign, Building2, Zap } from "lucide-react";
+import { Loader2, Search, AlertTriangle, TrendingUp, Users, DollarSign, Building2, Zap, Pencil } from "lucide-react";
 import RiskUpdateSheet from "@/components/RiskUpdateSheet";
+import EditDrawer, { EditField } from "@/components/EditDrawer";
+import { toast } from "sonner";
 
 function getHealthColor(score: number) {
   if (score >= 70) return "text-green-600";
@@ -37,8 +39,13 @@ export default function ClientsPage() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [riskSheet, setRiskSheet] = useState<{ id: number; name: string; status: string; healthScore: number } | null>(null);
+  const [editClient, setEditClient] = useState<{ id: number; name: string; notes: string; healthScore: number; status: string } | null>(null);
 
   const { data: clients, isLoading } = trpc.clients.getAll.useQuery();
+  const utils = trpc.useUtils();
+  const updateClientRisk = trpc.clients.updateRisk.useMutation({
+    onSuccess: () => { utils.clients.getAll.invalidate(); toast.success("Client updated."); },
+  });
 
   const filtered = (clients ?? []).filter(
     (c) => !search || c.name.toLowerCase().includes(search.toLowerCase())
@@ -243,13 +250,23 @@ export default function ClientsPage() {
                   </div>
                 </div>
               )}
-              <Button
-                className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => setRiskSheet({ id: selectedClient.id, name: selectedClient.name, status: selectedClient.status, healthScore: selectedClient.healthScore })}
-              >
-                <Zap className="w-4 h-4" />
-                Update Risk Status
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => setRiskSheet({ id: selectedClient.id, name: selectedClient.name, status: selectedClient.status, healthScore: selectedClient.healthScore })}
+                >
+                  <Zap className="w-4 h-4" />
+                  Update Risk Status
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setEditClient({ id: selectedClient.id, name: selectedClient.name, notes: selectedClient.notes ?? "", healthScore: selectedClient.healthScore, status: selectedClient.status })}
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </Button>
+              </div>
             </Card>
           ) : (
             <Card className="p-12 text-center text-foreground">
@@ -268,6 +285,38 @@ export default function ClientsPage() {
           title={riskSheet.name}
           subtitle={`Health: ${riskSheet.healthScore}%`}
           currentStatus={riskSheet.status}
+          onUpdated={() => utils.clients.getAll.invalidate()}
+        />
+      )}
+
+      {editClient && (
+        <EditDrawer
+          open={!!editClient}
+          onClose={() => setEditClient(null)}
+          title={`Edit Client — ${editClient.name}`}
+          subtitle="Update notes, health score, or status. Use voice or text."
+          fields={[
+            {
+              key: "status", label: "Status", type: "select", value: editClient.status,
+              options: [
+                { value: "active", label: "Active" },
+                { value: "at_risk", label: "At Risk" },
+                { value: "churned", label: "Churned" },
+                { value: "prospect", label: "Prospect" },
+              ],
+            },
+            { key: "healthScore", label: "Health Score (0-100)", type: "text", value: String(editClient.healthScore), placeholder: "0-100" },
+            { key: "notes", label: "Notes", type: "textarea", value: editClient.notes, placeholder: "Add context, updates, or risk notes..." },
+          ] as EditField[]}
+          onSave={async (values) => {
+            await updateClientRisk.mutateAsync({
+              id: editClient.id,
+              status: values.status as "active" | "at_risk" | "churned" | "prospect",
+              healthScore: values.healthScore ? Number(values.healthScore) : undefined,
+              notes: values.notes || undefined,
+            });
+          }}
+          onUpdated={() => setEditClient(null)}
         />
       )}
     </div>

@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
-import { Loader2, X, AlertTriangle, Zap } from "lucide-react";
+import { Loader2, X, AlertTriangle, Zap, Pencil } from "lucide-react";
 import { Tabs as TabsUI, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import RiskUpdateSheet from "@/components/RiskUpdateSheet";
+import EditDrawer, { EditField } from "@/components/EditDrawer";
+import { toast } from "sonner";
 
 export default function ActionItemsBlockers() {
   // ── All hooks MUST be declared before any early returns ──────────────────
@@ -22,25 +24,28 @@ export default function ActionItemsBlockers() {
   const [riskSheet, setRiskSheet] = useState<{ id: number; title: string; status: string } | null>(null);
   const [dateRangeStart, setDateRangeStart] = useState<string>("");
   const [dateRangeEnd, setDateRangeEnd] = useState<string>("");
+  const [editActionItem, setEditActionItem] = useState<{ id: number; task: string; owner: string; priority: string; status: string; deadline: string | null } | null>(null);
+  const [editBlocker, setEditBlocker] = useState<{ id: number; description: string; domainTag: string; resolutionNote: string | null } | null>(null);
 
   const listActionItems = trpc.actionItems.getAll.useQuery();
   const listBlockers = trpc.blockers.getAll.useQuery();
+  const utils = trpc.useUtils();
+
+  const updateActionItem = trpc.actionItems.update.useMutation({
+    onSuccess: () => { utils.actionItems.getAll.invalidate(); },
+  });
+  const updateBlocker = trpc.blockers.update.useMutation({
+    onSuccess: () => { utils.blockers.getAll.invalidate(); utils.blockers.getOpen.invalidate(); },
+  });
+  const toggleActionStatus = trpc.actionItems.updateStatus.useMutation({
+    onSuccess: () => { utils.actionItems.getAll.invalidate(); },
+  });
 
   // All useMemo hooks declared here — BEFORE any conditional returns
   const uniqueOwners = useMemo(() => {
     const owners = new Set<string>();
-    (listActionItems.data || []).forEach((item) => {
-      if (item.owner) owners.add(item.owner);
-    });
+    (listActionItems.data || []).forEach((item) => { if (item.owner) owners.add(item.owner); });
     return Array.from(owners).sort();
-  }, [listActionItems.data]);
-
-  const uniqueDomains = useMemo(() => {
-    const domains = new Set<string>();
-    (listActionItems.data || []).forEach((item) => {
-      if (item.domainTag) domains.add(item.domainTag);
-    });
-    return Array.from(domains).sort();
   }, [listActionItems.data]);
 
   const filteredActionItems = useMemo(() => {
@@ -69,20 +74,12 @@ export default function ActionItemsBlockers() {
     });
   }, [listBlockers.data, blockerSearchText, blockerStatusFilter]);
 
-  // ── Derived values (safe to compute after hooks) ──────────────────────────
+  // ── Derived values ────────────────────────────────────────────────────────
   const openActionItems = filteredActionItems.filter((item) => item.status === "open");
   const completedActionItems = filteredActionItems.filter((item) => item.status === "complete");
   const highPriorityItems = openActionItems.filter((item) => item.priority === "HIGH");
   const overdueItems = openActionItems.filter((item) => item.deadline && new Date(item.deadline) < new Date());
-
-  const blockerCounts = new Map<string, number>();
-  (listBlockers.data || []).forEach((blocker) => {
-    const count = (blockerCounts.get(blocker.description) || 0) + 1;
-    blockerCounts.set(blocker.description, count);
-  });
-  const chronicBlockers = Array.from(blockerCounts.entries())
-    .filter(([_, count]) => count >= 3)
-    .map(([description]) => description);
+  const chronicBlockers = (listBlockers.data || []).filter((b) => b.isChronicFlag || b.timesAppeared >= 3);
 
   const hasActiveFilters = searchText || ownerFilter !== "all" || statusFilter !== "all" || priorityFilter !== "all" || dateRangeStart || dateRangeEnd;
   const hasActiveBlockerFilters = blockerSearchText || blockerStatusFilter !== "all";
@@ -106,30 +103,46 @@ export default function ActionItemsBlockers() {
             {listActionItems.error?.message || listBlockers.error?.message || "Please make sure you are logged in."}
           </p>
         </div>
-        <Button variant="outline" onClick={() => { listActionItems.refetch(); listBlockers.refetch(); }}>
-          Retry
-        </Button>
+        <Button variant="outline" onClick={() => { listActionItems.refetch(); listBlockers.refetch(); }}>Retry</Button>
       </div>
     );
   }
+
+  // ── Action item edit fields ───────────────────────────────────────────────
+  const actionItemEditFields: EditField[] = editActionItem ? [
+    { key: "task", label: "Task Description", type: "textarea", value: editActionItem.task, placeholder: "What needs to be done..." },
+    { key: "owner", label: "Owner", type: "text", value: editActionItem.owner, placeholder: "Person responsible" },
+    {
+      key: "priority", label: "Priority", type: "select", value: editActionItem.priority,
+      options: [{ value: "HIGH", label: "HIGH" }, { value: "MED", label: "MEDIUM" }, { value: "LOW", label: "LOW" }],
+    },
+    {
+      key: "status", label: "Status", type: "select", value: editActionItem.status,
+      options: [{ value: "open", label: "Open" }, { value: "complete", label: "Complete" }],
+    },
+    { key: "deadline", label: "Deadline", type: "date", value: editActionItem.deadline ? new Date(editActionItem.deadline).toISOString().split("T")[0] : "" },
+  ] : [];
+
+  // ── Blocker edit fields ───────────────────────────────────────────────────
+  const blockerEditFields: EditField[] = editBlocker ? [
+    { key: "description", label: "Description", type: "textarea", value: editBlocker.description, placeholder: "What is blocking progress..." },
+    { key: "domainTag", label: "Domain Tag", type: "text", value: editBlocker.domainTag, placeholder: "e.g. INVOICING, HR, CLIENT-OPS" },
+    { key: "resolutionNote", label: "Resolution / Update Note", type: "textarea", value: editBlocker.resolutionNote ?? "", placeholder: "Add context, partial progress, or resolution..." },
+  ] : [];
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Action Items & Blockers</h1>
         <p className="text-foreground mt-2">
-          Unified task board for tracking action items and blockers across all sessions.
+          Unified task board. Click any item to edit — use voice or text to make updates.
         </p>
       </div>
 
       <TabsUI value={view} onValueChange={(v) => setView(v as "actions" | "blockers")}>
         <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="actions">
-            Action Items ({filteredActionItems.length})
-          </TabsTrigger>
-          <TabsTrigger value="blockers">
-            Blockers ({filteredBlockers.length})
-          </TabsTrigger>
+          <TabsTrigger value="actions">Action Items ({filteredActionItems.length})</TabsTrigger>
+          <TabsTrigger value="blockers">Blockers ({filteredBlockers.length})</TabsTrigger>
         </TabsList>
 
         {/* ── Action Items View ─────────────────────────────────────────── */}
@@ -158,27 +171,16 @@ export default function ActionItemsBlockers() {
             <div className="space-y-3">
               <div className="text-sm font-semibold">Filters</div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                <Input
-                  placeholder="Search tasks..."
-                  value={searchText}
-                  onChange={(e) => setSearchText(e.target.value)}
-                  className="text-sm"
-                />
+                <Input placeholder="Search tasks..." value={searchText} onChange={(e) => setSearchText(e.target.value)} className="text-sm" />
                 <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Owner" />
-                  </SelectTrigger>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Owner" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Owners</SelectItem>
-                    {uniqueOwners.map((owner) => (
-                      <SelectItem key={owner} value={owner}>{owner}</SelectItem>
-                    ))}
+                    {uniqueOwners.map((owner) => <SelectItem key={owner} value={owner}>{owner}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Select value={statusFilter} onValueChange={setStatusFilter}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="open">Open</SelectItem>
@@ -186,9 +188,7 @@ export default function ActionItemsBlockers() {
                   </SelectContent>
                 </Select>
                 <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Priority" />
-                  </SelectTrigger>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Priority" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Priorities</SelectItem>
                     <SelectItem value="HIGH">HIGH</SelectItem>
@@ -198,37 +198,14 @@ export default function ActionItemsBlockers() {
                 </Select>
               </div>
               {hasActiveFilters && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setSearchText("");
-                    setOwnerFilter("all");
-                    setStatusFilter("all");
-                    setPriorityFilter("all");
-                    setDateRangeStart("");
-                    setDateRangeEnd("");
-                  }}
-                  className="text-xs"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Clear Filters
+                <Button size="sm" variant="ghost" onClick={() => { setSearchText(""); setOwnerFilter("all"); setStatusFilter("all"); setPriorityFilter("all"); setDateRangeStart(""); setDateRangeEnd(""); }} className="text-xs">
+                  <X className="w-3 h-3 mr-1" />Clear Filters
                 </Button>
               )}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 pt-2 border-t">
                 <div className="text-sm font-semibold col-span-full">Date Range (for deadlines)</div>
-                <Input
-                  type="date"
-                  value={dateRangeStart}
-                  onChange={(e) => setDateRangeStart(e.target.value)}
-                  className="text-sm"
-                />
-                <Input
-                  type="date"
-                  value={dateRangeEnd}
-                  onChange={(e) => setDateRangeEnd(e.target.value)}
-                  className="text-sm"
-                />
+                <Input type="date" value={dateRangeStart} onChange={(e) => setDateRangeStart(e.target.value)} className="text-sm" />
+                <Input type="date" value={dateRangeEnd} onChange={(e) => setDateRangeEnd(e.target.value)} className="text-sm" />
               </div>
             </div>
           </Card>
@@ -256,7 +233,18 @@ export default function ActionItemsBlockers() {
                       return (
                         <div key={item.id} className={`p-4 border rounded-lg ${isOverdue ? "bg-destructive/10 border-destructive/30" : ""}`}>
                           <div className="flex items-start gap-4">
-                            <Checkbox checked={false} className="mt-1" />
+                            <Checkbox
+                              checked={false}
+                              className="mt-1 cursor-pointer"
+                              onCheckedChange={async () => {
+                                try {
+                                  await toggleActionStatus.mutateAsync({ id: item.id, status: "complete" });
+                                  toast.success("Marked complete!");
+                                } catch {
+                                  toast.error("Failed to update status.");
+                                }
+                              }}
+                            />
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span className="font-semibold">{item.task}</span>
@@ -267,12 +255,26 @@ export default function ActionItemsBlockers() {
                               </div>
                               <div className="text-sm text-foreground space-y-1">
                                 <p><strong>Owner:</strong> {item.owner}</p>
-                                {item.deadline && (
-                                  <p><strong>Due:</strong> {new Date(item.deadline).toLocaleDateString()}</p>
-                                )}
+                                {item.deadline && <p><strong>Due:</strong> {new Date(item.deadline).toLocaleDateString()}</p>}
                                 <p><strong>Session:</strong> #{item.sourceSession}</p>
                               </div>
                             </div>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-shrink-0 h-8 text-xs gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 bg-transparent"
+                              onClick={() => setEditActionItem({
+                                id: item.id,
+                                task: item.task,
+                                owner: item.owner,
+                                priority: item.priority,
+                                status: item.status,
+                                deadline: item.deadline ? String(item.deadline) : null,
+                              })}
+                            >
+                              <Pencil className="w-3 h-3" />
+                              Edit
+                            </Button>
                           </div>
                         </div>
                       );
@@ -289,9 +291,26 @@ export default function ActionItemsBlockers() {
               <div className="space-y-2">
                 {completedActionItems.map((item) => (
                   <div key={item.id} className="p-3 border rounded-lg opacity-60">
-                    <div className="flex items-center gap-2">
-                      <Checkbox checked={true} disabled />
-                      <span className="line-through text-foreground">{item.task}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2">
+                        <Checkbox checked={true} disabled />
+                        <span className="line-through text-foreground">{item.task}</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 text-xs gap-1 text-muted-foreground"
+                        onClick={() => setEditActionItem({
+                          id: item.id,
+                          task: item.task,
+                          owner: item.owner,
+                          priority: item.priority,
+                          status: item.status,
+                          deadline: item.deadline ? String(item.deadline) : null,
+                        })}
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </Button>
                     </div>
                   </div>
                 ))}
@@ -315,16 +334,9 @@ export default function ActionItemsBlockers() {
             <div className="space-y-3">
               <div className="text-sm font-semibold">Filters</div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <Input
-                  placeholder="Search blockers..."
-                  value={blockerSearchText}
-                  onChange={(e) => setBlockerSearchText(e.target.value)}
-                  className="text-sm"
-                />
+                <Input placeholder="Search blockers..." value={blockerSearchText} onChange={(e) => setBlockerSearchText(e.target.value)} className="text-sm" />
                 <Select value={blockerStatusFilter} onValueChange={setBlockerStatusFilter}>
-                  <SelectTrigger className="text-sm">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="open">Open</SelectItem>
@@ -333,14 +345,8 @@ export default function ActionItemsBlockers() {
                 </Select>
               </div>
               {hasActiveBlockerFilters && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => { setBlockerSearchText(""); setBlockerStatusFilter("all"); }}
-                  className="text-xs"
-                >
-                  <X className="w-3 h-3 mr-1" />
-                  Clear Filters
+                <Button size="sm" variant="ghost" onClick={() => { setBlockerSearchText(""); setBlockerStatusFilter("all"); }} className="text-xs">
+                  <X className="w-3 h-3 mr-1" />Clear Filters
                 </Button>
               )}
             </div>
@@ -358,13 +364,13 @@ export default function ActionItemsBlockers() {
             ) : (
               <div className="space-y-3">
                 {filteredBlockers.map((blocker) => {
-                  const isChronic = chronicBlockers.includes(blocker.description);
+                  const isChronic = blocker.isChronicFlag || blocker.timesAppeared >= 3;
                   return (
                     <div
                       key={blocker.id}
                       className={`p-4 border rounded-lg ${isChronic ? "border-red-300 bg-destructive/10" : blocker.status === "resolved" ? "opacity-60" : ""}`}
                     >
-                        <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
                             <span className="font-semibold">{blocker.description}</span>
@@ -377,22 +383,36 @@ export default function ActionItemsBlockers() {
                           <div className="text-sm text-foreground space-y-1">
                             <p><strong>First seen:</strong> Session #{blocker.firstAppearedSession}</p>
                             <p><strong>Times appeared:</strong> {blocker.timesAppeared}</p>
-                            {blocker.resolutionNote && (
-                              <p><strong>Resolution:</strong> {blocker.resolutionNote}</p>
-                            )}
+                            {blocker.resolutionNote && <p><strong>Note:</strong> {blocker.resolutionNote}</p>}
                           </div>
                         </div>
-                        {blocker.status === "open" && (
+                        <div className="flex flex-col gap-2 flex-shrink-0">
+                          {blocker.status === "open" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 text-xs gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 bg-transparent"
+                              onClick={() => setRiskSheet({ id: blocker.id, title: blocker.description, status: blocker.status })}
+                            >
+                              <Zap className="w-3 h-3" />
+                              Update
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
-                            className="flex-shrink-0 h-8 text-xs gap-1.5 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 bg-transparent"
-                            onClick={() => setRiskSheet({ id: blocker.id, title: blocker.description, status: blocker.status })}
+                            className="h-8 text-xs gap-1.5 border-border text-foreground hover:bg-muted/30 bg-transparent"
+                            onClick={() => setEditBlocker({
+                              id: blocker.id,
+                              description: blocker.description,
+                              domainTag: blocker.domainTag,
+                              resolutionNote: blocker.resolutionNote ?? null,
+                            })}
                           >
-                            <Zap className="w-3 h-3" />
-                            Update
+                            <Pencil className="w-3 h-3" />
+                            Edit
                           </Button>
-                        )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -403,6 +423,7 @@ export default function ActionItemsBlockers() {
         </TabsContent>
       </TabsUI>
 
+      {/* Risk Update Sheet (resolve/escalate/note) */}
       {riskSheet && (
         <RiskUpdateSheet
           open={!!riskSheet}
@@ -412,6 +433,47 @@ export default function ActionItemsBlockers() {
           title={riskSheet.title}
           currentStatus={riskSheet.status}
           onUpdated={() => listBlockers.refetch()}
+        />
+      )}
+
+      {/* Edit Drawer — Action Item */}
+      {editActionItem && (
+        <EditDrawer
+          open={!!editActionItem}
+          onClose={() => setEditActionItem(null)}
+          title="Edit Action Item"
+          subtitle={`Session #${listActionItems.data?.find((i) => i.id === editActionItem.id)?.sourceSession ?? ""}`}
+          fields={actionItemEditFields}
+          onSave={async (values) => {
+            await updateActionItem.mutateAsync({
+              id: editActionItem.id,
+              task: values.task || undefined,
+              owner: values.owner || undefined,
+              priority: (values.priority as "HIGH" | "MED" | "LOW") || undefined,
+              status: (values.status as "open" | "complete") || undefined,
+              deadline: values.deadline || null,
+            });
+          }}
+          onUpdated={() => setEditActionItem(null)}
+        />
+      )}
+
+      {/* Edit Drawer — Blocker */}
+      {editBlocker && (
+        <EditDrawer
+          open={!!editBlocker}
+          onClose={() => setEditBlocker(null)}
+          title="Edit Blocker"
+          fields={blockerEditFields}
+          onSave={async (values) => {
+            await updateBlocker.mutateAsync({
+              id: editBlocker.id,
+              description: values.description || undefined,
+              domainTag: values.domainTag || undefined,
+              resolutionNote: values.resolutionNote || undefined,
+            });
+          }}
+          onUpdated={() => setEditBlocker(null)}
         />
       )}
     </div>

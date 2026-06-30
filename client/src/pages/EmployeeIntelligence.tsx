@@ -4,9 +4,10 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, AlertTriangle, Shield, User, TrendingUp, UserCheck, Zap } from "lucide-react";
+import { Loader2, Search, AlertTriangle, Shield, User, TrendingUp, UserCheck, Zap, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import RiskUpdateSheet from "@/components/RiskUpdateSheet";
+import EditDrawer, { EditField } from "@/components/EditDrawer";
 
 function getCriticalityColor(score: number) {
   if (score >= 8) return "bg-red-100 text-destructive border-destructive/30";
@@ -31,10 +32,12 @@ export default function EmployeeIntelligence() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [riskSheet, setRiskSheet] = useState<{ id: number; name: string; role: string; status: string; criticalityScore: number } | null>(null);
+  const [editEmployee, setEditEmployee] = useState<{ id: number; name: string; role: string; notes: string; criticalityScore: number; replacementReadiness: number; backupPerson: string; status: string } | null>(null);
 
   const { data: employees, isLoading } = trpc.employees.getAll.useQuery();
+  const utils = trpc.useUtils();
   const upsertEmployee = trpc.employees.upsert.useMutation({
-    onSuccess: () => toast.success("Employee updated"),
+    onSuccess: () => { utils.employees.getAll.invalidate(); toast.success("Employee updated"); },
   });
 
   const filtered = (employees ?? []).filter(
@@ -261,13 +264,23 @@ export default function EmployeeIntelligence() {
                   </div>
                 </div>
               )}
-              <Button
-                className="w-full gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
-                onClick={() => setRiskSheet({ id: selectedEmployee.id, name: selectedEmployee.name, role: selectedEmployee.role, status: selectedEmployee.status, criticalityScore: selectedEmployee.criticalityScore })}
-              >
-                <Zap className="w-4 h-4" />
-                Update Risk Status
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  className="flex-1 gap-2 bg-indigo-600 hover:bg-indigo-700 text-white"
+                  onClick={() => setRiskSheet({ id: selectedEmployee.id, name: selectedEmployee.name, role: selectedEmployee.role, status: selectedEmployee.status, criticalityScore: selectedEmployee.criticalityScore })}
+                >
+                  <Zap className="w-4 h-4" />
+                  Update Risk Status
+                </Button>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setEditEmployee({ id: selectedEmployee.id, name: selectedEmployee.name, role: selectedEmployee.role, notes: selectedEmployee.notes ?? "", criticalityScore: selectedEmployee.criticalityScore, replacementReadiness: selectedEmployee.replacementReadiness, backupPerson: selectedEmployee.backupPerson ?? "", status: selectedEmployee.status })}
+                >
+                  <Pencil className="w-4 h-4" />
+                  Edit
+                </Button>
+              </div>
             </Card>
           ) : (
             <Card className="p-12 text-center text-foreground">
@@ -286,6 +299,40 @@ export default function EmployeeIntelligence() {
           title={riskSheet.name}
           subtitle={`${riskSheet.role} · Criticality ${riskSheet.criticalityScore}/10`}
           currentStatus={riskSheet.status}
+          onUpdated={() => utils.employees.getAll.invalidate()}
+        />
+      )}
+
+      {editEmployee && (
+        <EditDrawer
+          open={!!editEmployee}
+          onClose={() => setEditEmployee(null)}
+          title={`Edit Employee — ${editEmployee.name}`}
+          subtitle="Update role, scores, backup, or notes. Use voice or text."
+          fields={[
+            { key: "role", label: "Role / Title", type: "text", value: editEmployee.role, placeholder: "e.g. Senior Developer" },
+            {
+              key: "status", label: "Status", type: "select", value: editEmployee.status,
+              options: [{ value: "active", label: "Active" }, { value: "at_risk", label: "At Risk" }, { value: "inactive", label: "Inactive" }],
+            },
+            { key: "criticalityScore", label: "Criticality Score (1-10)", type: "text", value: String(editEmployee.criticalityScore), placeholder: "1-10" },
+            { key: "replacementReadiness", label: "Replacement Readiness (0-100)", type: "text", value: String(editEmployee.replacementReadiness), placeholder: "0-100" },
+            { key: "backupPerson", label: "Backup Person", type: "text", value: editEmployee.backupPerson, placeholder: "Name of backup" },
+            { key: "notes", label: "Notes", type: "textarea", value: editEmployee.notes, placeholder: "Add context, concerns, or updates..." },
+          ] as EditField[]}
+          onSave={async (values) => {
+            await upsertEmployee.mutateAsync({
+              id: editEmployee.id,
+              name: editEmployee.name,
+              role: values.role || editEmployee.role,
+              status: values.status as "active" | "at_risk" | "inactive",
+              criticalityScore: values.criticalityScore ? Number(values.criticalityScore) : editEmployee.criticalityScore,
+              replacementReadiness: values.replacementReadiness ? Number(values.replacementReadiness) : editEmployee.replacementReadiness,
+              backupPerson: values.backupPerson || undefined,
+              notes: values.notes || undefined,
+            });
+          }}
+          onUpdated={() => setEditEmployee(null)}
         />
       )}
     </div>
